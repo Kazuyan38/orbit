@@ -1,6 +1,6 @@
 /* ORBIT — Service Worker: アプリ本体をキャッシュしてオフラインで起動できるようにする。
    データは localStorage にあり、ここでは扱わない。更新時は VERSION を上げる。 */
-const VERSION = 'orbit-v0.7.2';
+const VERSION = 'orbit-v0.8.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './js/core.js', './js/ui.js', './js/store.js', './js/sapphire.js', './js/todo.js', './js/projects.js',

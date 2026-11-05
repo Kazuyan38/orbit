@@ -373,7 +373,7 @@ body.locked { overflow: hidden; }
 .link-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .memo-item .t a { color: var(--hi); word-break: break-all; }
 /* ---------- PC ---------- */
-#side { display: none; }
+#side, #sideOpen { display: none; }
 @media (min-width: 720px) {
   #sheet { left: 0; right: 0; width: min(560px, 100%); margin: 0 auto; border-radius: 20px 20px 0 0; }
 }
@@ -391,6 +391,16 @@ body.locked { overflow: hidden; }
   #side .keys { margin: 8px 12px 0; font-size: 12px; color: var(--fg-3); line-height: 1.8; }
   #side kbd { font: inherit; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line-strong); color: var(--fg-2); }
   .view:not(#focus):not(#breakView) { left: 248px; }
+  #side .collapse { position: absolute; top: 24px; right: 12px; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--fg-3); }
+  #side .collapse:hover { background: var(--hi-soft); color: var(--fg); }
+  body.side-collapsed #sideOpen { display: grid; }
+  #sideOpen { position: fixed; left: 14px; top: 20px; z-index: 13; width: 40px; height: 40px; border-radius: 12px; place-items: center;
+    color: var(--hi); background: var(--surface); border: 1px solid var(--line-strong); }
+  body.side-collapsed #side { display: none; }
+  body.side-collapsed .view:not(#focus):not(#breakView) { left: 0; }
+  body.side-collapsed .memo-fab { left: calc(var(--safe-l) + 18px); }
+  body.side-collapsed .hdr { padding-left: 72px; }
+  body.side-collapsed .sub-hdr { padding-left: 62px; }
   .view:not(#breakView) > * { max-width: 860px; }
   .memo-fab { left: calc(248px + 18px); }
   #todo .hdr .ib[data-act="launcher"] { display: none; }
@@ -427,6 +437,7 @@ body.locked { overflow: hidden; }
 <div id="launcher" role="menu" hidden></div>
 <div id="sheet" role="dialog" aria-modal="true" hidden></div>
 <nav id="side" aria-label="メニュー"></nav>
+<button id="sideOpen" aria-label="サイドバーを開く"></button>
 <button class="memo-fab" id="memoFab" aria-label="メモ" hidden></button>
 <section id="auth" aria-label="ログイン" hidden></section>
 <div id="toast" role="status" aria-live="polite"><span class="msg"></span><button type="button">元に戻す</button></div>

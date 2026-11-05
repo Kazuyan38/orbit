@@ -77,9 +77,19 @@
       ${SIDE.map(([r, ic, label]) => `<button class="nav ${r === cur ? 'on' : ''}" data-go="${r}">${icon(ic)}${label}</button>`).join('')}
       <div class="sp"></div>
       <button class="nav ${cur === 'settings' ? 'on' : ''}" data-go="settings">${icon('gear')}Settings</button>
-      <div class="keys"><kbd>N</kbd> 新しいタスク　<kbd>M</kbd> メモ</div>`;
+      <div class="keys"><kbd>N</kbd> 新しいタスク　<kbd>M</kbd> メモ　<kbd>B</kbd> サイドバー</div>
+      <button class="collapse" data-collapse aria-label="サイドバーを閉じる">${icon('back')}</button>`;
   }
+  // サイドバーの開閉は端末ごとの好みなので localStorage に持つ（同期しない）。
+  function setSide(collapsed) {
+    document.body.classList.toggle('side-collapsed', collapsed);
+    try { localStorage.setItem('orbit.side', collapsed ? '0' : '1'); } catch (_) { /* 保存できなくても動く */ }
+  }
+  try { if (localStorage.getItem('orbit.side') === '0') document.body.classList.add('side-collapsed'); } catch (_) { /* 既定は開く */ }
+  $('#sideOpen').innerHTML = icon('chev');
+  $('#sideOpen').addEventListener('click', () => setSide(false));
   $('#side').addEventListener('click', (e) => {
+    if (e.target.closest('[data-collapse]')) { setSide(true); return; }
     const b = e.target.closest('[data-go]');
     if (!b) return;
     const to = b.dataset.go;
@@ -93,6 +103,7 @@
     if (!$('#auth').hidden || store.state.focus) return;
     if (e.key === 'n') { e.preventDefault(); ORBIT.todo.newTask(); }
     if (e.key === 'm') { e.preventDefault(); ORBIT.memo.open(); }
+    if (e.key === 'b') { e.preventDefault(); setSide(!document.body.classList.contains('side-collapsed')); }
   });
 
   ORBIT.nav = { open, back, render, refreshHeader, current };

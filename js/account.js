@@ -32,6 +32,7 @@
     too_large: 'データが大きすぎてクラウドに保存できません',
     network: 'サーバーに接続できません。通信状態を確認してください',
     config: 'サーバーが未設定です',
+    unavailable: 'この機能はサーバー側の準備がまだ終わっていません',
   };
 
   const read = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch (_) { return null; } };
@@ -60,7 +61,7 @@
     const text = await res.text();
     let body = null;
     try { body = text ? JSON.parse(text) : null; } catch (_) { /* 本文が JSON でない（障害時の HTML など） */ }
-    if (!res.ok) throw new ApiError(body && ERR[body.message] ? body.message : 'network');
+    if (!res.ok) throw new ApiError(body && ERR[body.message] ? body.message : body && body.code === 'PGRST202' ? 'unavailable' : 'network');
     if (body && body.error) throw new ApiError(body.error);
     return body;
   }

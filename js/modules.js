@@ -57,7 +57,7 @@
           <span>学習 ${md(r.createdOn)}</span></div></div>
           ${rv.tab === 'today' ? `<button class="pill" data-act="rvDone" style="min-width:0;height:40px;padding:0 16px">${icon('check', 'sm')}復習した</button>` : ''}</li>`;
       };
-      el.innerHTML = tabs([['today', `今日${dueCount ? ` ${dueCount}` : ''}`], ['upcoming', '予定'], ['mastered', '完了']], rv.tab)
+      el.innerHTML = tabs([['today', `今日${dueCount ? ` ${dueCount}` : ''}`], ['upcoming', '予定']], rv.tab)
         + (list.length ? `<ul class="list">${list.map(row).join('')}</ul>`
           : emptyBox(rv.tab === 'today' ? '今日の復習はありません' : rv.tab === 'upcoming' ? '予定はありません<br><small>右上の ＋ から学習内容を登録できます</small>' : 'まだありません'))
         + `<p class="note" style="margin:16px 20px 140px">復習日は学習日から ${iv.join('・')} 日後を目安に自動で決まります。最後の間隔に達したあとも、同じ間隔で繰り返し続けます。</p>`;
@@ -458,7 +458,7 @@
         <button class="menu-item" data-set="export">${icon('download')}バックアップを書き出す</button>
         <button class="menu-item" data-set="import">${icon('upload')}バックアップから復元</button>
         <p class="note">データはこの端末のブラウザ内に保存されます${persisted === true ? '（消去されにくい永続ストレージ）' : ''}${ORBIT.account.user ? '。ログイン中はクラウドにも同期されます' : ''}。iPhone では「ホーム画面に追加」して使うと、しばらく開かなくてもデータが消されません。定期的なバックアップを推奨します。</p>
-        <p class="note" style="color:var(--fg-3)">ORBIT v0.7.0</p></div>`;
+        <p class="note" style="color:var(--fg-3)">ORBIT v0.7.1</p></div>`;
     },
   };
 

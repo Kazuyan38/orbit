@@ -22,7 +22,7 @@
     const sub = $('#sub');
     sub.innerHTML = `<header class="sub-hdr"><button class="ib" data-hdr="back" aria-label="戻る">${icon('back')}</button>
       <h2>${esc(route.title)}</h2><div class="hdr-actions" style="display:flex">${route.header ? route.header() : '<span class="spacer"></span>'}</div></header>
-      <div class="scroll" id="subScroll"></div>`;
+      <div class="scroll" id="subScroll"></div>${route.fab ? `<button class="fab" data-hdr="add" aria-label="${esc(route.fab)}">${icon('plus')}</button>` : ''}`;
     contentEl = $('#subScroll');
     if (route.mount) route.mount(contentEl);
     sub.hidden = false;
@@ -88,17 +88,19 @@
 
   /* ---------- ToDo ヘッダーとランチャー ---------- */
   const todoHdr = $('#todo .hdr');
+  todoHdr.querySelector('[data-act="add"]').innerHTML = icon('plus');
   todoHdr.querySelector('[data-route="analytics"]').innerHTML = icon('chart');
   todoHdr.querySelector('[data-act="launcher"]').innerHTML = icon('grid');
   todoHdr.querySelector('[data-route="settings"]').innerHTML = icon('gear');
   todoHdr.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
+    if (b.dataset.act === 'add') ORBIT.todo.newTask();
     if (b.dataset.act === 'open') open(b.dataset.route);
     if (b.dataset.act === 'launcher') toggleLauncher(true);
   });
 
-  const LAUNCH = [['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'], ['habits', 'habit', 'Habits']];
+  const LAUNCH = [['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'], ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule']];
   function toggleLauncher(show) {
     const el = $('#launcher');
     const scrim = $('#scrim');
@@ -127,41 +129,18 @@
     else if (ORBIT.ui.sheetOpen()) ORBIT.ui.closeSheet();
   });
 
-  /* ---------- 向き: 横画面（タッチ端末）で 3D ホーム ----------
-     ビューポートの縦横比ではなく端末の向きで判定する（キーボード表示で縦横比が変わっても切り替えないため）。 */
-  const coarse = matchMedia('(pointer: coarse)');
-  function isLandscape() {
-    if (location.hash === '#orbit') return true;
-    if (!coarse.matches) return false;
-    if (screen.orientation && screen.orientation.type) return screen.orientation.type.startsWith('landscape');
-    return Math.abs(window.orientation || 0) === 90;
-  }
-  function syncOrientation() {
-    const want = isLandscape() && !store.state.focus;
-    ORBIT.home3d.setVisible(want);
-  }
-  if (screen.orientation) screen.orientation.addEventListener('change', syncOrientation);
-  window.addEventListener('orientationchange', syncOrientation);
-  window.addEventListener('hashchange', syncOrientation);
-  window.addEventListener('resize', () => { if (location.hash === '#orbit') syncOrientation(); });
-
   /* ---------- 起動 ---------- */
   ORBIT.todo.init();
   ORBIT.focus.init();
-  ORBIT.home3d.init();
 
   store.subscribe((state) => {
     ORBIT.todo.render(state);
     render();
     ORBIT.focus.render(state);
-    ORBIT.home3d.render(state);
-    syncOrientation();
   });
   const s = store.state;
   ORBIT.todo.render(s);
   ORBIT.focus.render(s);
-  ORBIT.home3d.render(s);
-  syncOrientation();
 
   ORBIT.account.init();
 

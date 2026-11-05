@@ -60,7 +60,7 @@
       el.innerHTML = tabs([['today', `今日${dueCount ? ` ${dueCount}` : ''}`], ['upcoming', '予定'], ['mastered', '完了']], rv.tab)
         + (list.length ? `<ul class="list">${list.map(row).join('')}</ul>`
           : emptyBox(rv.tab === 'today' ? '今日の復習はありません' : rv.tab === 'upcoming' ? '予定はありません<br><small>右上の ＋ から学習内容を登録できます</small>' : 'まだありません'))
-        + `<p class="note" style="margin:16px 20px 140px">復習日は学習日から ${iv.join('・')} 日後を目安に自動で決まります（設定で変更可）。</p>`;
+        + `<p class="note" style="margin:16px 20px 140px">復習日は学習日から ${iv.join('・')} 日後を目安に自動で決まります。最後の間隔に達したあとも、同じ間隔で繰り返し続けます。</p>`;
     },
   };
 
@@ -103,7 +103,7 @@
   const STATUS = { want: '読みたい', reading: '読書中', done: '読了' };
   routes.reading = {
     title: 'Reading',
-    header: () => plusHeader('本を追加'),
+    fab: '本を追加',
     onHeader(act) { if (act === 'add') bookForm(null); },
     mount(el) {
       bindTabs(el, rd, () => ORBIT.nav.render());
@@ -177,7 +177,7 @@
   const hb = { month: null };
   routes.habits = {
     title: 'Habits',
-    header: () => plusHeader('習慣を追加'),
+    fab: '習慣を追加',
     onHeader(act) { if (act === 'add') habitForm(null); },
     mount(el) {
       el.addEventListener('click', (e) => {
@@ -360,8 +360,6 @@
           store.commit((s) => C.updateSettings(s, { [key]: next }));
           return;
         }
-        const wk = e.target.closest('[data-fw]');
-        if (wk) { store.commit((s) => C.updateSettings(s, { firstWeekday: Number(wk.dataset.fw) })); return; }
         const act = e.target.closest('[data-set]');
         if (!act) return;
         if (act.dataset.set.startsWith('acc:')) { ORBIT.account.action(act.dataset.set.slice(4)); return; }
@@ -369,16 +367,6 @@
         if (act.dataset.set === 'import') importDialog();
         if (act.dataset.set === 'trash') ORBIT.nav.open('trash');
         if (act.dataset.set === 'archive') ORBIT.nav.open('archive');
-      });
-      el.addEventListener('change', (e) => {
-        if (e.target.name !== 'intervals') return;
-        const iv = e.target.value.split(/[,、\s]+/).filter(Boolean).map(Number);
-        const before = JSON.stringify(store.state.settings.reviewIntervals);
-        store.commit((s) => C.updateSettings(s, { reviewIntervals: iv }));
-        if (JSON.stringify(store.state.settings.reviewIntervals) === before && e.target.value.trim() !== before.slice(1, -1)) {
-          toast('日数は小さい順の正の整数で入力してください（例: 1,3,7,14,30）');
-          ORBIT.nav.render();
-        }
       });
     },
     render(state, el) {
@@ -389,10 +377,6 @@
         ${STEPS.map(([key, label, unit]) => `<div class="setting"><span>${label}</span><div class="stepper">
           <button data-step="-1" data-key="${key}" aria-label="${label}を減らす">−</button><span class="v num">${s[key]}${unit}</span>
           <button data-step="1" data-key="${key}" aria-label="${label}を増やす">＋</button></div></div>`).join('')}
-        <h4 class="note" style="margin-top:22px">復習の間隔（学習日からの日数）</h4>
-        <input class="inp" name="intervals" inputmode="numeric" value="${s.reviewIntervals.join(', ')}">
-        <h4 class="note" style="margin-top:22px">週の始まり</h4>
-        <div class="seg">${[[1, '月曜'], [0, '日曜']].map(([v, l]) => `<button data-fw="${v}" class="${s.firstWeekday === v ? 'on' : ''}">${l}</button>`).join('')}</div>
         <h4 class="note" style="margin-top:22px">データ</h4>
         <button class="menu-item" data-set="archive">${icon('archive')}アーカイブ済みプロジェクト</button>
         <button class="menu-item" data-set="trash">${icon('trash')}ごみ箱</button>

@@ -58,7 +58,7 @@ svg.i.sm { width: 16px; height: 16px; }
 .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* ---------- header ---------- */
-.hdr { display: flex; align-items: center; gap: 4px; padding: calc(var(--safe-t) + 10px) 12px 6px 20px; min-height: 56px; }
+.hdr { display: flex; align-items: center; gap: 4px; padding: calc(var(--safe-t) + 22px) 12px 14px 20px; min-height: 80px; }
 .hdr h1 { margin: 0; flex: 1; font-size: 30px; font-weight: 300; letter-spacing: .32em; }
 .hdr h1 b { font-weight: 600; color: var(--hi); }
 .hdr h2 { margin: 0; flex: 1; font-size: 19px; font-weight: 600; letter-spacing: .02em; text-align: center; }
@@ -73,7 +73,7 @@ svg.i.sm { width: 16px; height: 16px; }
 
 /* ---------- lists ---------- */
 .list { list-style: none; margin: 0; padding: 0; }
-.row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px 12px 14px; min-height: 52px;
+.row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 18px 16px 18px 14px; min-height: 68px;
   border-bottom: 1px solid var(--line); background: var(--bg); touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   transition: background .15s; }
 .row:active { background: rgba(23, 34, 56, .55); }
@@ -324,6 +324,11 @@ body.locked { overflow: hidden; }
 .invite-row.dead { opacity: .5; }
 .invite-row .txt { padding: 10px 8px; color: var(--hi); font-size: 14px; }
 .invite-row .txt.danger { color: var(--danger); }
+.fab { position: absolute; right: calc(var(--safe-r) + 18px); bottom: calc(var(--safe-b) + 22px); width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: #fff; box-shadow: 0 6px 22px rgba(37, 99, 235, .55), 0 0 0 1px var(--line-strong); z-index: 5; }
+.fab svg { width: 26px; height: 26px; }
+.fab:active { transform: scale(.95); }
+.cal-frame { width: 100%; height: 100%; border: 0; background: #fff; border-radius: 12px; }
 </style>
 </head>
 <body>
@@ -333,18 +338,13 @@ body.locked { overflow: hidden; }
 <section id="todo" class="view" aria-label="ToDo">
   <header class="hdr">
     <h1>ORB<b>I</b>T</h1>
+    <button class="ib" data-act="add" aria-label="タスクを追加"></button>
     <button class="ib" data-act="open" data-route="analytics" aria-label="統計"></button>
     <button class="ib" data-act="launcher" aria-label="機能ランチャー" aria-haspopup="menu"></button>
     <button class="ib" data-act="open" data-route="settings" aria-label="設定"></button>
   </header>
   <div class="rule"></div>
-  <div class="scroll" id="todoScroll"><div id="todoList"></div><div style="height:140px"></div></div>
-  <div class="addbar">
-    <form id="todoAdd" autocomplete="off">
-      <input id="todoInput" name="title" enterkeyhint="done" placeholder="タスクを追加" aria-label="新しいタスク">
-      <button class="go" type="submit" hidden>追加</button>
-    </form>
-  </div>
+  <div class="scroll" id="todoScroll"><div id="todoList"></div><div style="height:48px"></div></div>
 </section>
 
 <!-- 機能画面（Projects / Review / Reading / Habits / Analytics / Settings / Trash） -->
@@ -355,7 +355,6 @@ body.locked { overflow: hidden; }
 <section id="breakView" hidden></section>
 
 <!-- 横画面: 3D Orbital Home -->
-<section id="home3d" class="view" hidden aria-label="Orbital Home"></section>
 
 <div id="scrim" hidden></div>
 <div id="launcher" role="menu" hidden></div>
@@ -371,7 +370,7 @@ body.locked { overflow: hidden; }
 <script src="js/projects.js"></script>
 <script src="js/focus.js"></script>
 <script src="js/modules.js"></script>
-<script src="js/home3d.js"></script>
+<script src="js/schedule.js"></script>
 <script src="js/account.js"></script>
 <script src="js/app.js"></script>
 </body>

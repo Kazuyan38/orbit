@@ -20,6 +20,8 @@
     return { focusMin: 25, shortMin: 5, longMin: 15, cycles: 4, reviewIntervals: [1, 3, 7, 14, 30], trashDays: 30, firstWeekday: 1 };
   }
 
+  const MIN_RECORD_MS = 10000;
+
   function createState() {
     return {
       version: 1,
@@ -52,6 +54,9 @@
     for (const key of ['carryOver', 'focusLog', 'pomodoroLog']) s[key] = Array.isArray(raw[key]) ? raw[key] : [];
     s.focus = isObj(raw.focus) && isObj(raw.focus.engine) && Array.isArray(raw.focus.items) ? raw.focus : null;
     s.settings = Object.assign(defaultSettings(), isObj(raw.settings) ? raw.settings : {});
+    // 復習間隔と週の始まりは固定（設定画面から廃止）。
+    s.settings.reviewIntervals = defaultSettings().reviewIntervals;
+    s.settings.firstWeekday = 1;
     s.ui = Object.assign({ expanded: [], completedOpen: [] }, isObj(raw.ui) ? raw.ui : {});
     if (!Array.isArray(s.ui.expanded)) s.ui.expanded = [];
     if (!Array.isArray(s.ui.completedOpen)) s.ui.completedOpen = [];
@@ -813,16 +818,19 @@
       const f = state.focus;
       if (!f) return { focusMs: 0, pomodoros: 0 };
       const { intervals, completions } = Pomodoro.finish(f.engine, now);
-      const valid = intervals.filter((x) => x.end > x.start);
+      let valid = intervals.filter((x) => x.end > x.start);
+      let done = completions;
+      // 開いてすぐ閉じた（合計 10 秒未満でポモドーロも未完了）場合は記録しない。
+      if (!done.length && valid.reduce((acc, x) => acc + (x.end - x.start), 0) < MIN_RECORD_MS) { valid = []; done = []; }
       state.focusLog.push(...valid);
-      state.pomodoroLog.push(...completions);
+      state.pomodoroLog.push(...done);
       for (const { task } of Focus.items(state)) {
         const d = decisions[task.id];
         if (d === true) setCompleted(state, task.id, true, now);
         else if (d === false && carryOver && !task.completed && !state.carryOver.includes(task.id)) state.carryOver.push(task.id);
       }
       state.focus = null;
-      return { focusMs: valid.reduce((acc, x) => acc + (x.end - x.start), 0), pomodoros: completions.length };
+      return { focusMs: valid.reduce((acc, x) => acc + (x.end - x.start), 0), pomodoros: done.length };
     },
   };
 
@@ -949,8 +957,8 @@
       r.history.push({ on: today, at: now, step: r.step });
       r.step += 1;
       if (r.step >= iv.length) {
-        r.mastered = true;
-        r.nextDue = null;
+        // 最後の間隔に達しても終わらせず、以後は最後の間隔で繰り返す。
+        r.nextDue = Dates.addDays(today, iv[iv.length - 1]);
       } else {
         // 間隔は学習日からの累積日数。遅れて復習しても次回を今日以前にしない。
         const planned = Dates.addDays(r.createdOn, iv[r.step]);

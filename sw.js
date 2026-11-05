@@ -1,10 +1,10 @@
 /* ORBIT — Service Worker: アプリ本体をキャッシュしてオフラインで起動できるようにする。
    データは localStorage にあり、ここでは扱わない。更新時は VERSION を上げる。 */
-const VERSION = 'orbit-v0.3.0';
+const VERSION = 'orbit-v0.4.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './js/core.js', './js/ui.js', './js/store.js', './js/sapphire.js', './js/todo.js', './js/projects.js',
-  './js/focus.js', './js/modules.js', './js/home3d.js', './js/account.js', './js/app.js',
+  './js/focus.js', './js/modules.js', './js/schedule.js', './js/account.js', './js/app.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
 ];
 

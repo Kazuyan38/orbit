@@ -1140,6 +1140,65 @@
       return b;
     },
 
+    /** 読書ノート: 重要な文章・ページ・自分の考え。 */
+    addHighlight(state, bookId, { quote = '', page = null, thought = '' } = {}, now) {
+      const b = state.books[bookId];
+      const q = String(quote || '').trim();
+      const th = String(thought || '').trim();
+      if (!live(b) || (!q && !th)) return null;
+      const h = { id: uid(), quote: q, page: toPages(page), thought: th, createdAt: now, updatedAt: now, reviewId: null };
+      (b.highlights = b.highlights || []).push(h);
+      touch(b, now);
+      return h;
+    },
+
+    updateHighlight(state, bookId, hid, patch = {}, now) {
+      const b = state.books[bookId];
+      const h = b && (b.highlights || []).find((x) => x.id === hid);
+      if (!h) return null;
+      const q = 'quote' in patch ? String(patch.quote || '').trim() : h.quote;
+      const th = 'thought' in patch ? String(patch.thought || '').trim() : h.thought;
+      if (!q && !th) return null;
+      h.quote = q; h.thought = th;
+      if ('page' in patch) h.page = toPages(patch.page);
+      h.updatedAt = now;
+      touch(b, now);
+      return h;
+    },
+
+    removeHighlight(state, bookId, hid, now) {
+      const b = state.books[bookId];
+      if (!b || !(b.highlights || []).some((x) => x.id === hid)) return false;
+      b.highlights = b.highlights.filter((x) => x.id !== hid);
+      touch(b, now);
+      return true;
+    },
+
+    highlights(state, bookId) {
+      const b = state.books[bookId];
+      return b && b.highlights ? b.highlights.slice().sort((a, c) => (a.page == null) - (c.page == null) || (a.page || 0) - (c.page || 0) || a.createdAt - c.createdAt) : [];
+    },
+
+    /** ノートを復習項目に変える（1 ノートにつき 1 つ。復習中なら既存を返す）。 */
+    highlightToReview(state, bookId, hid, today, now) {
+      const b = state.books[bookId];
+      const h = b && (b.highlights || []).find((x) => x.id === hid);
+      if (!h) return null;
+      const existing = h.reviewId && state.reviews[h.reviewId];
+      if (live(existing)) return existing;
+      const label = `『${b.title}』${h.page != null ? ` p.${h.page}` : ''}`;
+      const head = (h.quote || h.thought).split('\n')[0];
+      const r = Review.create(state, {
+        title: head.length > 60 ? `${head.slice(0, 60)}…` : head,
+        notes: [label, h.quote, h.thought ? `【自分の考え】\n${h.thought}` : ''].filter(Boolean).join('\n\n'),
+      }, today, now);
+      if (!r) return null;
+      r.source = { type: 'book', bookId, highlightId: hid, label };
+      h.reviewId = r.id;
+      touch(b, now);
+      return r;
+    },
+
     list(state, status) {
       const list = values(state.books).filter((b) => live(b) && b.status === status);
       if (status === 'reading') return list.sort((a, b) => b.updatedAt - a.updatedAt);

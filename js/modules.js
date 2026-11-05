@@ -64,6 +64,7 @@
     },
   };
 
+  ORBIT.reviewForm = (id) => reviewForm(id);
   function reviewForm(id) {
     const s = store.state;
     const r = id ? s.reviews[id] : null;
@@ -101,6 +102,77 @@
   /* ======================= Reading ======================= */
   const rd = { tab: 'reading' };
   const STATUS = { want: '読みたい', reading: '読書中', done: '読了' };
+  /* ---------- 読書ノート（重要な文章・ページ・自分の考え） ---------- */
+  function notesSheet(bookId) {
+    const b = store.state.books[bookId];
+    if (!b) return;
+    const paint = (body) => {
+      const st = store.state;
+      const list = C.Books.highlights(st, bookId);
+      body.innerHTML = `<button type="button" class="btn primary" data-hl="new" style="margin-top:0">${icon('plus')}ノートを追加</button>
+        ${list.length ? list.map((h) => {
+          const rv = h.reviewId && st.reviews[h.reviewId] && !st.reviews[h.reviewId].deletedAt;
+          return `<div class="hl" data-hid="${esc(h.id)}">
+            ${h.quote ? `<blockquote>${esc(h.quote)}</blockquote>` : ''}
+            <div class="d">${h.page != null ? `p.${h.page} ・ ` : ''}${esc(md(C.Dates.dayKey(h.createdAt)))}${rv ? ' ・ <span class="badge">復習中</span>' : ''}</div>
+            ${h.thought ? `<div class="th">${esc(h.thought)}</div>` : ''}
+            <div class="acts">${rv ? '' : '<button data-hl="review">復習に追加</button>'}<button data-hl="edit">編集</button><button class="danger" data-hl="del">削除</button></div></div>`;
+        }).join('') : '<p class="note">印象に残った文章や、そこで考えたことを記録できます。</p>'}`;
+    };
+    openSheet({
+      title: `『${b.title}』のノート`, cancelLabel: '閉じる',
+      html: '',
+      onMount(body) {
+        paint(body);
+        body.addEventListener('click', (e) => {
+          const a = e.target.closest('[data-hl]'); if (!a) return;
+          const hid = a.closest('[data-hid]') && a.closest('[data-hid]').dataset.hid;
+          if (a.dataset.hl === 'new') { closeSheet(); highlightForm(bookId, null); }
+          else if (a.dataset.hl === 'edit') { closeSheet(); highlightForm(bookId, hid); }
+          else if (a.dataset.hl === 'review') {
+            const r = store.commit((st, now) => C.Books.highlightToReview(st, bookId, hid, today(), now), { silent: true });
+            if (r) toast(`復習に追加しました。初回は ${fmtDue(r.nextDue)}`);
+            paint(body);
+          } else if (a.dataset.hl === 'del') {
+            store.commit((st, now) => C.Books.removeHighlight(st, bookId, hid, now), { undo: 'ノートを削除しました', silent: true });
+            paint(body);
+          }
+        });
+      },
+    });
+  }
+
+  function highlightForm(bookId, hid) {
+    const b = store.state.books[bookId];
+    const h = hid ? C.Books.highlights(store.state, bookId).find((x) => x.id === hid) : null;
+    openSheet({
+      title: h ? 'ノートを編集' : 'ノートを追加', doneLabel: '保存', cancelLabel: 'キャンセル',
+      html: `<label class="field"><span>重要な文章</span><textarea class="inp" name="quote" rows="4" placeholder="印象に残った一節をそのまま書き写す">${esc(h ? h.quote : '')}</textarea></label>
+        <label class="field"><span>ページ</span><input class="inp" name="page" type="number" inputmode="numeric" min="0" value="${h ? (h.page == null ? '' : h.page) : (b.currentPage || '')}"></label>
+        <label class="field"><span>自分の考え</span><textarea class="inp" name="thought" rows="3" placeholder="どう感じた？どう使える？"></textarea></label>
+        ${h && h.reviewId ? '' : `<label class="setting" style="border:0"><span>復習項目にも追加する</span><input type="checkbox" name="rv" ${h ? '' : 'checked'} style="width:22px;height:22px;accent-color:var(--hi)"></label>`}`,
+      onMount(body) {
+        body.querySelector('[name="thought"]').value = h ? h.thought : '';
+        setTimeout(() => body.querySelector('[name="quote"]').focus(), 320);
+      },
+      done(body) {
+        const v = (n) => body.querySelector(`[name="${n}"]`).value;
+        if (!v('quote').trim() && !v('thought').trim()) { body.querySelector('[name="quote"]').focus(); return false; }
+        const rv = body.querySelector('[name="rv"]');
+        const wantReview = !!(rv && rv.checked);
+        let r = null;
+        store.commit((st, now) => {
+          const note = h ? C.Books.updateHighlight(st, bookId, hid, { quote: v('quote'), page: v('page') || null, thought: v('thought') }, now)
+            : C.Books.addHighlight(st, bookId, { quote: v('quote'), page: v('page') || null, thought: v('thought') }, now);
+          if (note && wantReview) r = C.Books.highlightToReview(st, bookId, note.id, today(), now);
+        });
+        if (r) toast(`復習に追加しました。初回は ${fmtDue(r.nextDue)}`);
+        return true;
+      },
+      onClose() { notesSheet(bookId); },
+    });
+  }
+
   routes.reading = {
     title: 'Reading',
     fab: '本を追加',
@@ -109,7 +181,9 @@
       bindTabs(el, rd, () => ORBIT.nav.render());
       el.addEventListener('click', (e) => {
         const row = e.target.closest('[data-id]');
-        if (row) bookForm(row.dataset.id);
+        if (!row) return;
+        if (e.target.closest('[data-notes]')) notesSheet(row.dataset.id);
+        else bookForm(row.dataset.id);
       });
     },
     render(state, el) {
@@ -122,7 +196,8 @@
         return `<div class="card2" data-id="${esc(b.id)}" role="button" tabindex="0">
           <h4>${esc(b.title)}</h4>${b.author ? `<div class="note" style="margin:0">${esc(b.author)}</div>` : ''}
           <div class="meta" style="margin-top:6px">${sub}</div>
-          ${rd.tab === 'reading' && pct != null ? `<div class="bar-prog" aria-hidden="true"><i style="width:${pct}%"></i></div>` : ''}</div>`;
+          ${rd.tab === 'reading' && pct != null ? `<div class="bar-prog" aria-hidden="true"><i style="width:${pct}%"></i></div>` : ''}
+          <button class="pill" data-notes style="margin-top:10px;min-width:0;height:36px;padding:0 14px">${icon('note', 'sm')}ノート${(b.highlights || []).length ? ` ${b.highlights.length}` : ''}</button></div>`;
       };
       el.innerHTML = tabs([['reading', '読書中'], ['want', '読みたい'], ['done', '読了']], rd.tab)
         + `<div class="pad">${list.length ? list.map(card).join('') : emptyBox(rd.tab === 'want' ? '読みたい本を ＋ から追加' : rd.tab === 'reading' ? '読書中の本はありません' : '読了した本はまだありません')}</div>`;
@@ -383,7 +458,7 @@
         <button class="menu-item" data-set="export">${icon('download')}バックアップを書き出す</button>
         <button class="menu-item" data-set="import">${icon('upload')}バックアップから復元</button>
         <p class="note">データはこの端末のブラウザ内に保存されます${persisted === true ? '（消去されにくい永続ストレージ）' : ''}${ORBIT.account.user ? '。ログイン中はクラウドにも同期されます' : ''}。iPhone では「ホーム画面に追加」して使うと、しばらく開かなくてもデータが消されません。定期的なバックアップを推奨します。</p>
-        <p class="note" style="color:var(--fg-3)">ORBIT v0.6.0</p></div>`;
+        <p class="note" style="color:var(--fg-3)">ORBIT v0.7.0</p></div>`;
     },
   };
 

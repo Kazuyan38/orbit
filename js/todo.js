@@ -33,17 +33,35 @@
     </li>`;
   }
 
+  function reviewRow(r) {
+    const n = r.history.length + 1;
+    return `<li class="row rv" data-id="${esc(r.id)}" data-kind="review">
+      <button class="chk" data-act="rvDone" aria-label="復習した"><span class="ring"></span></button>
+      <div class="body" data-act="rvOpen"><div class="title">${esc(r.title)}</div>
+        <div class="meta"><span class="rvtag">${icon('review', 'sm')}復習 ${n} 回目</span>${r.source ? `<span>${esc(r.source.label)}</span>` : ''}</div></div></li>`;
+  }
+
+  function completeReview(id, rowEl) {
+    const r = store.state.reviews[id];
+    if (!r) return;
+    haptic('success');
+    if (rowEl) { rowEl.classList.add('done'); rowEl.querySelector('.chk .ring').innerHTML = icon('check'); }
+    setTimeout(() => store.commit((s, now) => C.Review.complete(s, id, today(), now),
+      { undo: (x) => `次回の復習は ${fmtDue(x.nextDue)}` }), 240);
+  }
+
   function render(state) {
     const active = C.activeTodo(state);
+    const dueReviews = C.Review.due(state, today());
     const done = C.completedTodo(state);
     const open = state.ui.completedOpen.includes('todo');
     const el = $('#todoList');
-    if (!active.length && !done.length) {
+    if (!active.length && !done.length && !dueReviews.length) {
       el.innerHTML = `<div class="empty"><div class="orb"></div>タスクはありません<br><small>右上の ＋ から追加できます</small></div>`;
       return;
     }
     const focusRunning = !!state.focus;
-    el.innerHTML = `<ul class="list" id="todoActive">${active.map((t, i) => taskRow(state, t, { play: i === 0 && !focusRunning })).join('')}</ul>
+    el.innerHTML = `${dueReviews.length ? `<h4 class="sec-title">今日の復習 <span class="num">${dueReviews.length}</span></h4><ul class="list" id="todoReviews">${dueReviews.map(reviewRow).join('')}</ul>` : ''}<ul class="list" id="todoActive">${active.map((t, i) => taskRow(state, t, { play: i === 0 && !focusRunning })).join('')}</ul>
       ${done.length ? `<button class="sec-h ${open ? 'open' : ''}" data-act="toggleDone" aria-expanded="${open}">
           <span class="chev">${icon('chev', 'sm')}</span>完了済み <span class="num">${done.length}</span></button>
         ${open ? `<ul class="list">${done.map((t) => taskRow(state, t)).join('')}</ul>` : ''}` : ''}`;
@@ -73,7 +91,9 @@
       const row = e.target.closest('[data-id]');
       if (!actEl) return;
       const act = actEl.dataset.act;
-      if (act === 'toggle' && row) toggle(row.dataset.id, row);
+      if (act === 'rvDone' && row) completeReview(row.dataset.id, row);
+      else if (act === 'rvOpen' && row) ORBIT.reviewForm(row.dataset.id);
+      else if (act === 'toggle' && row) toggle(row.dataset.id, row);
       else if (act === 'detail' && row) openTaskSheet(row.dataset.id);
       else if (act === 'focus' && row && onFocus) onFocus(row.dataset.id);
       else if (act === 'toggleDone') {
@@ -168,14 +188,15 @@
   function bindSwipe(container) {
     let g = null;
     container.addEventListener('pointerdown', (e) => {
-      const row = e.target.closest('li.row[data-kind="task"]');
+      const row = e.target.closest('li.row[data-kind="task"], li.row[data-kind="review"]');
       if (!row || e.target.closest('.chk, .play') || (e.pointerType === 'mouse' && e.button !== 0)) return;
       g = { row, id: row.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false };
     });
     container.addEventListener('pointermove', (e) => {
       if (!g || e.pointerId !== g.pid) return;
       if (g.row.classList.contains('lift')) { g = null; return; }
-      const dx = e.clientX - g.x;
+      const isRv = g.row.dataset.kind === 'review';
+      const dx = isRv ? Math.max(0, e.clientX - g.x) : e.clientX - g.x;
       const dy = e.clientY - g.y;
       if (!g.on) {
         if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { g = null; return; }
@@ -187,7 +208,7 @@
       const done = g.row.classList.contains('done');
       g.row.classList.toggle('sw-r', dx > 0);
       g.row.classList.toggle('sw-l', dx < 0);
-      g.row.dataset.swr = done ? '未完了に戻す' : '完了';
+      g.row.dataset.swr = isRv ? '復習した' : done ? '未完了に戻す' : '完了';
       g.row.classList.toggle('armed', Math.abs(dx) >= SWIPE_AT);
       g.row.style.transform = `translateX(${dx}px)`;
       g.dx = dx;
@@ -201,7 +222,7 @@
       const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
       container.addEventListener('click', swallow, true);
       setTimeout(() => container.removeEventListener('click', swallow, true), 60);
-      const hit = !cancelled && Math.abs(dx) >= SWIPE_AT;
+      const hit = !cancelled && Math.abs(dx || 0) >= SWIPE_AT;
       row.classList.remove('swiping', 'armed');
       row.style.transition = 'transform .18s var(--ease)';
       row.style.transform = hit ? `translateX(${dx > 0 ? '' : '-'}110%)` : '';
@@ -210,7 +231,8 @@
         row.classList.remove('sw-r', 'sw-l');
         if (!hit) { row.style.transform = ''; return; }
         haptic('success');
-        if (dx > 0) toggle(id);
+        if (row.dataset.kind === 'review') completeReview(id);
+        else if (dx > 0) toggle(id);
         else archive(id);
       }, 180);
     };

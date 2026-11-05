@@ -26,7 +26,7 @@
   /* ======================= Review ======================= */
   const rv = { tab: 'today' };
   routes.review = {
-    title: 'Review',
+    title: '復習',
     header: () => plusHeader('復習項目を追加'),
     onHeader(act) { if (act === 'add') reviewForm(null); },
     mount(el) {
@@ -174,7 +174,7 @@
   }
 
   routes.reading = {
-    title: 'Reading',
+    title: '読書',
     fab: '本を追加',
     onHeader(act) { if (act === 'add') bookForm(null); },
     mount(el) {
@@ -251,7 +251,7 @@
   /* ======================= Habits ======================= */
   const hb = { month: null };
   routes.habits = {
-    title: 'Habits',
+    title: '習慣',
     fab: '習慣を追加',
     onHeader(act) { if (act === 'add') habitForm(null); },
     mount(el) {
@@ -375,7 +375,7 @@
   }
 
   routes.analytics = {
-    title: 'Analytics',
+    title: '統計',
     mount(el) {
       el.addEventListener('click', (e) => {
         const tab = e.target.closest('[data-tab]');
@@ -422,7 +422,7 @@
     ['cycles', '長い休憩までの回数', '回', 1, 12, 1], ['trashDays', 'ごみ箱の保持期間', '日', 1, 365, 5],
   ];
   routes.settings = {
-    title: 'Settings',
+    title: '設定',
     mount(el) {
       el.addEventListener('click', async (e) => {
         const st = e.target.closest('[data-step]');
@@ -459,7 +459,7 @@
         <button class="menu-item" data-set="export">${icon('download')}バックアップを書き出す</button>
         <button class="menu-item" data-set="import">${icon('upload')}バックアップから復元</button>
         <p class="note">データはこの端末のブラウザ内に保存されます${persisted === true ? '（消去されにくい永続ストレージ）' : ''}${ORBIT.account.user ? '。ログイン中はクラウドにも同期されます' : ''}。iPhone では「ホーム画面に追加」して使うと、しばらく開かなくてもデータが消されません。定期的なバックアップを推奨します。</p>
-        <p class="note" style="color:var(--fg-3)">ORBIT v0.8.0</p></div>`;
+        <p class="note" style="color:var(--fg-3)">ORBIT v0.9.0</p></div>`;
     },
   };
 

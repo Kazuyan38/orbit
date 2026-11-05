@@ -68,15 +68,15 @@
   }
 
   /* ---------- PC: 左サイドバー ---------- */
-  const SIDE = [['todo', 'check', 'ToDo'], ['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'],
-    ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule'], ['memos', 'note', 'Memo'], ['analytics', 'chart', 'Analytics']];
+  const SIDE = [['todo', 'check', 'ToDo'], ['projects', 'folder', 'プロジェクト'], ['review', 'review', '復習'], ['reading', 'book', '読書'],
+    ['habits', 'habit', '習慣'], ['schedule', 'cal', 'スケジュール'], ['memos', 'note', 'メモ'], ['analytics', 'chart', '統計']];
   function paintSide() {
     const side = $('#side');
     const cur = current() || 'todo';
     side.innerHTML = `<div class="brand">ORB<b>I</b>T</div>
       ${SIDE.map(([r, ic, label]) => `<button class="nav ${r === cur ? 'on' : ''}" data-go="${r}">${icon(ic)}${label}</button>`).join('')}
       <div class="sp"></div>
-      <button class="nav ${cur === 'settings' ? 'on' : ''}" data-go="settings">${icon('gear')}Settings</button>
+      <button class="nav ${cur === 'settings' ? 'on' : ''}" data-go="settings">${icon('gear')}設定</button>
       <div class="keys"><kbd>N</kbd> 新しいタスク　<kbd>M</kbd> メモ　<kbd>B</kbd> サイドバー</div>
       <button class="collapse" data-collapse aria-label="サイドバーを閉じる">${icon('back')}</button>`;
   }
@@ -130,9 +130,7 @@
   /* ---------- ToDo ヘッダーとランチャー ---------- */
   const todoHdr = $('#todo .hdr');
   todoHdr.querySelector('[data-act="add"]').innerHTML = icon('plus');
-  todoHdr.querySelector('[data-route="analytics"]').innerHTML = icon('chart');
   todoHdr.querySelector('[data-act="launcher"]').innerHTML = icon('grid');
-  todoHdr.querySelector('[data-route="settings"]').innerHTML = icon('gear');
   todoHdr.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
@@ -141,7 +139,8 @@
     if (b.dataset.act === 'launcher') toggleLauncher(true);
   });
 
-  const LAUNCH = [['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'], ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule'], ['memos', 'note', 'Memo']];
+  const LAUNCH = [['projects', 'folder', 'プロジェクト'], ['review', 'review', '復習'], ['reading', 'book', '読書'], ['habits', 'habit', '習慣'],
+    ['schedule', 'cal', 'スケジュール'], ['memos', 'note', 'メモ'], ['analytics', 'chart', '統計'], ['settings', 'gear', '設定']];
   function toggleLauncher(show) {
     const el = $('#launcher');
     const scrim = $('#scrim');

@@ -315,7 +315,7 @@
 
   ORBIT.routes = ORBIT.routes || {};
   ORBIT.routes.projects = {
-    title: 'Projects',
+    title: 'プロジェクト',
     header() {
       if (view.searching) {
         return `<div class="searchbar" style="flex:1;padding:0 4px;border:0"><input class="inp" id="projSearch" type="search" placeholder="検索" value="${esc(view.query)}" enterkeyhint="search"></div>
@@ -331,7 +331,7 @@
       if (act === 'new') editProject(null, null);
       if (act === 'more') {
         ORBIT.ui.openSheet({
-          title: 'Projects',
+          title: 'プロジェクト',
           html: `<button class="menu-item" data-m="archive">${icon('archive')}アーカイブ済み</button>
             <button class="menu-item" data-m="trash">${icon('trash')}ごみ箱</button>`,
           onMount(body) {

@@ -57,7 +57,7 @@
     const open = state.ui.completedOpen.includes('todo');
     const el = $('#todoList');
     if (!active.length && !done.length && !dueReviews.length) {
-      el.innerHTML = `<div class="empty"><div class="orb"></div>タスクはありません<br><small>右上の ＋ から追加できます</small></div>`;
+      el.innerHTML = `<div class="empty"><div class="orb"></div>タスクはありません<br><small>右上の ＋ からも追加できます</small><button class="btn primary" data-act="addFirst">最初のタスクを追加</button></div>`;
       return;
     }
     const focusRunning = !!state.focus;
@@ -91,7 +91,8 @@
       const row = e.target.closest('[data-id]');
       if (!actEl) return;
       const act = actEl.dataset.act;
-      if (act === 'rvDone' && row) completeReview(row.dataset.id, row);
+      if (act === 'addFirst') newTask();
+      else if (act === 'rvDone' && row) completeReview(row.dataset.id, row);
       else if (act === 'rvOpen' && row) ORBIT.reviewForm(row.dataset.id);
       else if (act === 'toggle' && row) toggle(row.dataset.id, row);
       else if (act === 'detail' && row) openTaskSheet(row.dataset.id);
@@ -249,14 +250,15 @@
       title: '新しいタスク', doneLabel: '追加', cancelLabel: 'キャンセル',
       html: `
         <label class="field"><span>タイトル</span><textarea class="inp" name="title" rows="2" style="min-height:0" placeholder="やること"></textarea></label>
-        <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…"></textarea></label>
-        <div class="links" data-links></div>
-        <div class="field"><span>緊急度</span><div class="seg" data-seg="urgency">
-          ${[1, 2, 3, 4].map((u) => `<button type="button" data-v="${u}" class="${u === urgency ? 'on' : ''}">${URGENCY[u]}</button>`).join('')}</div></div>
-        <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
-          <input class="inp" type="date" name="due"><button type="button" class="ib" data-clear="due" aria-label="期限をなくす">${icon('close')}</button></div></label>
-        <label class="field"><span>プロジェクト</span><select class="inp" name="project"><option value="">未分類</option>
-          ${opts.map((o) => `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('')}</select></label>`,
+        <details class="more"><summary>メモ・期限などを追加</summary>
+          <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…"></textarea></label>
+          <div class="links" data-links></div>
+          <div class="field"><span>緊急度</span><div class="seg" data-seg="urgency">
+            ${[1, 2, 3, 4].map((u) => `<button type="button" data-v="${u}" class="${u === urgency ? 'on' : ''}">${URGENCY[u]}</button>`).join('')}</div></div>
+          <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
+            <input class="inp" type="date" name="due"><button type="button" class="ib" data-clear="due" aria-label="期限をなくす">${icon('close')}</button></div></label>
+          <label class="field"><span>プロジェクト</span><select class="inp" name="project"><option value="">未分類</option>
+            ${opts.map((o) => `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('')}</select></label></details>`,
       onMount(body) {
         body.querySelector('[data-seg="urgency"]').addEventListener('click', (e) => {
           const b = e.target.closest('button'); if (!b) return;

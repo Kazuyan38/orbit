@@ -63,7 +63,7 @@
   }
 
   routes.memos = {
-    title: 'Memo',
+    title: 'メモ',
     mount(el) {
       el.addEventListener('click', (e) => {
         const b = e.target.closest('[data-m]');

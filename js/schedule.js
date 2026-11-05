@@ -42,7 +42,7 @@
   }
 
   routes.schedule = {
-    title: 'Schedule',
+    title: 'スケジュール',
     header: () => `<button class="ib" data-hdr="cfg" aria-label="カレンダーの設定">${icon('gear')}</button>`,
     onHeader(act) { if (act === 'cfg') configSheet(); },
     mount(el) {

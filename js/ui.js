@@ -31,6 +31,7 @@
     review: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5"/><path d="M12 8v4l2.5 2"/>',
     note: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 10h8M8 14h8M8 18h4"/>',
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v16H6.5A1.5 1.5 0 0 0 5 20.5zM5 20.5A1.5 1.5 0 0 0 6.5 22H19"/>',
     habit: '<path d="M12 3l2.6 2 3.3-.2.9 3.2 2.7 1.9-1.2 3.1 1.2 3.1-2.7 1.9-.9 3.2-3.3-.2L12 21l-2.6-2-3.3.2-.9-3.2-2.7-1.9L3.7 11 2.5 7.9l2.7-1.9.9-3.2 3.3.2z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
     skip: '<path d="M6 5l9 7-9 7zM18 5v14"/>',
@@ -113,6 +114,23 @@
     if (cb) cb();
   }
   const sheetOpen = () => !$('#sheet').hidden;
+
+  /* ---------- リンク ---------- */
+  const URL_RE = /https?:\/\/[^\s<>"'）)」』]+/g;
+  const urlsIn = (text) => Array.from(new Set(String(text || '').match(URL_RE) || []));
+  /** 本文を escape したうえで、URL をリンクにする。 */
+  function linkify(text) {
+    const src = String(text || '');
+    let out = '', last = 0;
+    for (const m of src.matchAll(URL_RE)) {
+      out += esc(src.slice(last, m.index)) + `<a href="${esc(m[0])}" target="_blank" rel="noopener noreferrer">${esc(m[0])}</a>`;
+      last = m.index + m[0].length;
+    }
+    return out + esc(src.slice(last));
+  }
+  function linkLabel(u) {
+    try { const x = new URL(u); return (x.hostname.replace(/^www\./, '') + (x.pathname.length > 1 ? x.pathname : '')).slice(0, 46); } catch (_) { return u.slice(0, 46); }
+  }
 
   /* ---------- toast ---------- */
   let toastTimer = 0;
@@ -224,5 +242,5 @@
   }
 
   ORBIT.ui = { $, $$, esc, icon, COLORS, COLOR_LABEL, URGENCY, haptic, today, fmtDue, fmtDuration, fmtClock,
-    openSheet, closeSheet, sheetOpen, toast, hideToast, sortable };
+    openSheet, closeSheet, sheetOpen, toast, hideToast, sortable, urlsIn, linkify, linkLabel };
 })();

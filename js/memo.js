@@ -4,7 +4,7 @@
   'use strict';
   const ORBIT = window.ORBIT;
   const C = window.OrbitCore;
-  const { $, esc, icon, toast, openSheet, closeSheet } = ORBIT.ui;
+  const { $, esc, icon, toast, openSheet, closeSheet, linkify } = ORBIT.ui;
   const store = ORBIT.store;
   const routes = (ORBIT.routes = ORBIT.routes || {});
 
@@ -83,7 +83,7 @@
     render(state, el) {
       const list = C.Memos.list(state);
       el.innerHTML = list.length
-        ? `<div class="pad">${list.map((m) => `<div class="memo-item" data-id="${esc(m.id)}"><div class="t">${esc(m.text)}</div>
+        ? `<div class="pad">${list.map((m) => `<div class="memo-item" data-id="${esc(m.id)}"><div class="t">${linkify(m.text)}</div>
             <div class="d">${esc(stamp(m.createdAt))}</div>
             <div class="acts"><button data-m="task">タスクにする</button><button data-m="copy">コピー</button><button class="danger" data-m="del">削除</button></div></div>`).join('')}</div>`
         : '<div class="empty"><div class="orb"></div>メモはまだありません<br><small>左下のメモボタンから書き留められます</small></div>';

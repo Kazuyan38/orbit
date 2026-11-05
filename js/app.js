@@ -40,6 +40,7 @@
     stack.push(name);
     armBack();
     buildSub(name);
+    paintSide();
   }
 
   function back() {
@@ -47,6 +48,7 @@
     if (leaving && ORBIT.routes[leaving].onLeave) ORBIT.routes[leaving].onLeave();
     if (stack.length) buildSub(current());
     else { $('#sub').hidden = true; contentEl = null; }
+    paintSide();
   }
 
   function render() {
@@ -64,6 +66,34 @@
     const holder = $('#sub .hdr-actions');
     holder.innerHTML = ORBIT.routes[name].header ? ORBIT.routes[name].header() : '<span class="spacer"></span>';
   }
+
+  /* ---------- PC: 左サイドバー ---------- */
+  const SIDE = [['todo', 'check', 'ToDo'], ['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'],
+    ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule'], ['memos', 'note', 'Memo'], ['analytics', 'chart', 'Analytics']];
+  function paintSide() {
+    const side = $('#side');
+    const cur = current() || 'todo';
+    side.innerHTML = `<div class="brand">ORB<b>I</b>T</div>
+      ${SIDE.map(([r, ic, label]) => `<button class="nav ${r === cur ? 'on' : ''}" data-go="${r}">${icon(ic)}${label}</button>`).join('')}
+      <div class="sp"></div>
+      <button class="nav ${cur === 'settings' ? 'on' : ''}" data-go="settings">${icon('gear')}Settings</button>
+      <div class="keys"><kbd>N</kbd> 新しいタスク　<kbd>M</kbd> メモ</div>`;
+  }
+  $('#side').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-go]');
+    if (!b) return;
+    const to = b.dataset.go;
+    if (to === (current() || 'todo')) return;
+    if (to === 'todo') { while (stack.length) back(); return; }
+    if (stack.length) open(to, { replace: true }); else open(to);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || ORBIT.ui.sheetOpen()) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (!$('#auth').hidden || store.state.focus) return;
+    if (e.key === 'n') { e.preventDefault(); ORBIT.todo.newTask(); }
+    if (e.key === 'm') { e.preventDefault(); ORBIT.memo.open(); }
+  });
 
   ORBIT.nav = { open, back, render, refreshHeader, current };
 
@@ -131,6 +161,7 @@
 
   /* ---------- 起動 ---------- */
   ORBIT.todo.init();
+  paintSide();
   ORBIT.focus.init();
 
   store.subscribe((state) => {

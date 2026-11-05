@@ -288,7 +288,7 @@ textarea.inp { resize: vertical; min-height: 84px; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 @media (min-width: 720px) {
-  .view:not(#home3d):not(#breakView) > * { width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .view:not(#breakView) > * { width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }
 }
 /* ---------- ログイン ---------- */
 #auth { position: fixed; inset: 0; z-index: 90; overflow-y: auto; display: flex; align-items: center; justify-content: center;
@@ -345,6 +345,44 @@ body.locked { overflow: hidden; }
 .memo-item .acts { display: flex; gap: 8px; margin-top: 8px; }
 .memo-item .acts button { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); font-size: 13.5px; color: var(--hi); }
 .memo-item .acts button.danger { color: var(--danger); }
+/* ---------- スワイプ ---------- */
+#todoList { overflow-x: clip; }
+.row.swiping { transition: none; z-index: 4; }
+.row.sw-r::before, .row.sw-l::after { position: absolute; top: 0; bottom: 0; width: 100%; display: flex; align-items: center; font-size: 14px; font-weight: 600; letter-spacing: .04em; pointer-events: none; }
+.row.sw-r::before { content: attr(data-swr); left: -100%; justify-content: flex-end; padding-right: 22px; background: rgba(52, 211, 153, .22); color: var(--ok); }
+.row.sw-l::after { content: "アーカイブ"; left: 100%; justify-content: flex-start; padding-left: 22px; background: rgba(251, 191, 36, .2); color: #FBBF24; }
+.row.armed.sw-r::before { background: rgba(52, 211, 153, .45); color: #fff; }
+.row.armed.sw-l::after { background: rgba(251, 191, 36, .42); color: #fff; }
+/* ---------- リンク ---------- */
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 6px; }
+.links:empty { display: none; }
+.link-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 9px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--hi-soft); color: var(--hi); font-size: 13.5px; text-decoration: none; }
+.link-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-item .t a { color: var(--hi); word-break: break-all; }
+/* ---------- PC ---------- */
+#side { display: none; }
+@media (min-width: 720px) {
+  #sheet { left: 0; right: 0; width: min(560px, 100%); margin: 0 auto; border-radius: 20px 20px 0 0; }
+}
+@media (min-width: 1000px) {
+  #side { display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; width: 248px; z-index: 12;
+    padding: 28px 14px 18px; background: var(--bg-deep); border-right: 1px solid var(--line); }
+  #side .brand { margin: 0 8px 22px; font-size: 24px; font-weight: 300; letter-spacing: .32em; }
+  #side .brand b { font-weight: 600; color: var(--hi); }
+  #side button.nav { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; border-radius: 12px; font-size: 15px; color: var(--fg-2); text-align: left; }
+  #side button.nav svg { color: var(--fg-3); }
+  #side button.nav:hover { background: var(--hi-soft); color: var(--fg); }
+  #side button.nav.on { background: var(--hi-soft); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  #side button.nav.on svg { color: var(--hi); }
+  #side .sp { flex: 1; }
+  #side .keys { margin: 8px 12px 0; font-size: 12px; color: var(--fg-3); line-height: 1.8; }
+  #side kbd { font: inherit; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line-strong); color: var(--fg-2); }
+  .view:not(#focus):not(#breakView) { left: 248px; }
+  .view:not(#breakView) > * { max-width: 860px; }
+  .memo-fab { left: calc(248px + 18px); }
+  #todo .hdr .ib[data-act="launcher"] { display: none; }
+  .row:hover { background: rgba(23, 34, 56, .4); }
+}
 </style>
 </head>
 <body>
@@ -375,6 +413,7 @@ body.locked { overflow: hidden; }
 <div id="scrim" hidden></div>
 <div id="launcher" role="menu" hidden></div>
 <div id="sheet" role="dialog" aria-modal="true" hidden></div>
+<nav id="side" aria-label="メニュー"></nav>
 <button class="memo-fab" id="memoFab" aria-label="メモ" hidden></button>
 <section id="auth" aria-label="ログイン" hidden></section>
 <div id="toast" role="status" aria-live="polite"><span class="msg"></span><button type="button">元に戻す</button></div>

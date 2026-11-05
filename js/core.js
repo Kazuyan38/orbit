@@ -66,6 +66,7 @@
       t.title = String(t.title == null ? '' : t.title);
       t.notes = String(t.notes == null ? '' : t.notes);
       t.completed = !!t.completed;
+      t.archived = !!t.archived;
       if (t.projectId === undefined) t.projectId = null;
       if (typeof t.todoOrder !== 'number') t.todoOrder = 0;
       if (typeof t.projectOrder !== 'number') t.projectOrder = 0;
@@ -230,15 +231,32 @@
   const todoSort = (a, b) => (a.todoOrder - b.todoOrder) || (a.createdAt - b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
   function activeTodo(state) {
-    return values(state.tasks).filter((t) => live(t) && !t.completed).sort(todoSort);
+    return values(state.tasks).filter((t) => live(t) && !t.archived && !t.completed).sort(todoSort);
   }
 
   function completedTodo(state) {
-    return values(state.tasks).filter((t) => live(t) && t.completed).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    return values(state.tasks).filter((t) => live(t) && !t.archived && t.completed).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  }
+
+  /** タスクのアーカイブ。ToDo・プロジェクト・検索・集中リストから隠すだけで、削除ではない。 */
+  function setTaskArchived(state, id, archived, now) {
+    const t = requireTask(state, id);
+    if (!!t.archived === !!archived) return t;
+    t.archived = !!archived;
+    touch(t, now);
+    if (archived) {
+      dropFromFocus(state, [id]);
+      state.carryOver = state.carryOver.filter((x) => x !== id);
+    }
+    return t;
+  }
+
+  function archivedTasks(state) {
+    return values(state.tasks).filter((t) => live(t) && t.archived).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
   function reorderTodo(state, orderedIds, now) {
-    const tasks = orderedIds.map((id) => state.tasks[id]).filter((t) => live(t) && !t.completed);
+    const tasks = orderedIds.map((id) => state.tasks[id]).filter((t) => live(t) && !t.archived && !t.completed);
     let slots = tasks.map((t) => t.todoOrder).sort((a, b) => a - b);
     if (new Set(slots).size !== slots.length) {
       const base = slots.length ? slots[0] : 0;
@@ -371,7 +389,7 @@
   }
 
   function projectTasks(state, projectId) {
-    const mine = values(state.tasks).filter((t) => live(t) && t.projectId === projectId);
+    const mine = values(state.tasks).filter((t) => live(t) && !t.archived && t.projectId === projectId);
     return {
       active: mine.filter((t) => !t.completed).sort((a, b) => (a.projectOrder - b.projectOrder) || (a.createdAt - b.createdAt)),
       completed: mine.filter((t) => t.completed).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0)),
@@ -398,7 +416,7 @@
     let done = 0;
     let total = 0;
     for (const t of values(state.tasks)) {
-      if (!live(t) || !ids.has(t.projectId)) continue;
+      if (!live(t) || t.archived || !ids.has(t.projectId)) continue;
       total += 1;
       if (t.completed) done += 1;
     }
@@ -533,7 +551,7 @@
       .slice(0, 50)
       .map((p) => ({ type: 'project', id: p.id, title: p.name, path: names(p.id).slice(0, -1), archived: isEffectivelyArchived(state, p.id) }));
     const tasks = values(state.tasks)
-      .filter((t) => live(t) && norm(t.title).includes(q))
+      .filter((t) => live(t) && !t.archived && norm(t.title).includes(q))
       .sort((a, b) => (a.completed - b.completed) || todoSort(a, b))
       .slice(0, 50)
       .map((t) => {
@@ -1221,7 +1239,7 @@
   const OrbitCore = {
     createState, migrate, importData, uid,
     Dates,
-    createTask, updateTask, setCompleted, trashTask, activeTodo, completedTodo, reorderTodo, orbitTasks,
+    createTask, updateTask, setCompleted, trashTask, setTaskArchived, archivedTasks, activeTodo, completedTodo, reorderTodo, orbitTasks,
     createProject, updateProject, children, descendants, ancestors, path, canMoveProject, moveProject, moveTask,
     projectTasks, progress, isEffectivelyArchived, setArchived, archivedProjects, deletionPreview, deleteProject,
     treeRows, search,

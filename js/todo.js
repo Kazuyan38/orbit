@@ -3,7 +3,7 @@
   'use strict';
   const ORBIT = window.ORBIT;
   const C = window.OrbitCore;
-  const { $, esc, icon, COLORS, URGENCY, fmtDue, today, haptic } = ORBIT.ui;
+  const { $, esc, icon, COLORS, URGENCY, fmtDue, today, haptic, urlsIn, linkLabel } = ORBIT.ui;
   const store = ORBIT.store;
 
   function projectColor(state, task) {
@@ -21,6 +21,7 @@
       const late = !task.completed && task.dueDate < today();
       meta.push(`<span class="${late ? 'late' : ''}">${icon('cal', 'sm')}${fmtDue(task.dueDate)}</span>`);
     }
+    if (urlsIn(task.notes).length) meta.push(`<span>${icon('link', 'sm')}リンク</span>`);
     const color = dot && projectColor(state, task);
     return `<li class="row ${task.completed ? 'done' : ''} ${cls}" data-id="${esc(task.id)}" data-kind="task">
       <button class="chk ${task.completed ? 'done' : ''}" data-act="toggle" aria-label="${task.completed ? '未完了に戻す' : '完了にする'}">
@@ -96,7 +97,8 @@
       title: 'タスク',
       html: `
         <label class="field"><span>タイトル</span><textarea class="inp" name="title" rows="2" style="min-height:0">${esc(t.title)}</textarea></label>
-        <label class="field"><span>メモ</span><textarea class="inp" name="notes" placeholder="メモ">${esc(t.notes)}</textarea></label>
+        <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…">${esc(t.notes)}</textarea></label>
+        <div class="links" data-links></div>
         <div class="field"><span>緊急度</span><div class="seg" data-seg="urgency">
           ${[1, 2, 3, 4].map((u) => `<button type="button" data-v="${u}" class="${u === urgency ? 'on' : ''}">${URGENCY[u]}</button>`).join('')}</div></div>
         <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
@@ -108,6 +110,7 @@
         </select></label>
         ${s.focus && !inFocus && !t.completed ? `<button type="button" class="btn" data-x="focusAdd">${icon('plus')}集中リストに追加</button>` : ''}
         <button type="button" class="btn" data-x="complete">${icon('check')}${t.completed ? '未完了に戻す' : '完了にする'}</button>
+        <button type="button" class="btn" data-x="archive">${icon('archive')}アーカイブ</button>
         <button type="button" class="btn danger" data-x="delete">${icon('trash')}削除</button>`,
       onMount(body) {
         body.querySelector('[data-seg="urgency"]').addEventListener('click', (e) => {
@@ -116,11 +119,13 @@
           body.querySelectorAll('[data-seg="urgency"] button').forEach((x) => x.classList.toggle('on', x === b));
         });
         body.querySelector('[data-clear="due"]').onclick = () => { body.querySelector('[name="due"]').value = ''; };
+        bindLinks(body);
         body.addEventListener('click', (e) => {
           const x = e.target.closest('[data-x]'); if (!x) return;
           ORBIT.ui.closeSheet();
           if (x.dataset.x === 'delete') store.commit((st, now) => C.trashTask(st, id, now), { undo: `「${t.title}」を削除しました` });
           if (x.dataset.x === 'complete') toggle(id);
+          if (x.dataset.x === 'archive') archive(id);
           if (x.dataset.x === 'focusAdd') store.commit((st) => C.Focus.addTask(st, id));
         });
       },
@@ -140,6 +145,79 @@
     });
   }
 
+  /** メモ欄に貼られた URL を、タップで開けるリンクとして並べる。 */
+  function bindLinks(body) {
+    const ta = body.querySelector('[name="notes"]');
+    const box = body.querySelector('[data-links]');
+    if (!ta || !box) return;
+    const paint = () => {
+      box.innerHTML = urlsIn(ta.value).map((u) => `<a class="link-chip" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${icon('link', 'sm')}<span>${esc(linkLabel(u))}</span></a>`).join('');
+    };
+    ta.addEventListener('input', paint);
+    paint();
+  }
+
+  function archive(id) {
+    const t = store.state.tasks[id];
+    if (!t) return;
+    store.commit((s, now) => C.setTaskArchived(s, id, true, now), { undo: `「${t.title}」をアーカイブしました` });
+  }
+
+  /* ---------- スワイプ: 右へ=完了、左へ=アーカイブ ---------- */
+  const SWIPE_AT = 88;
+  function bindSwipe(container) {
+    let g = null;
+    container.addEventListener('pointerdown', (e) => {
+      const row = e.target.closest('li.row[data-kind="task"]');
+      if (!row || e.target.closest('.chk, .play') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      g = { row, id: row.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false };
+    });
+    container.addEventListener('pointermove', (e) => {
+      if (!g || e.pointerId !== g.pid) return;
+      if (g.row.classList.contains('lift')) { g = null; return; }
+      const dx = e.clientX - g.x;
+      const dy = e.clientY - g.y;
+      if (!g.on) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { g = null; return; }
+        if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        g.on = true;
+        g.row.classList.add('swiping');
+        try { g.row.setPointerCapture(g.pid); } catch (_) { /* 既に離れている */ }
+      }
+      const done = g.row.classList.contains('done');
+      g.row.classList.toggle('sw-r', dx > 0);
+      g.row.classList.toggle('sw-l', dx < 0);
+      g.row.dataset.swr = done ? '未完了に戻す' : '完了';
+      g.row.classList.toggle('armed', Math.abs(dx) >= SWIPE_AT);
+      g.row.style.transform = `translateX(${dx}px)`;
+      g.dx = dx;
+    });
+    const end = (e, cancelled) => {
+      if (!g || e.pointerId !== g.pid) return;
+      const { row, id, on, dx } = g;
+      g = null;
+      if (!on) return;
+      // スワイプ直後のクリックでシートが開かないようにする。
+      const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+      container.addEventListener('click', swallow, true);
+      setTimeout(() => container.removeEventListener('click', swallow, true), 60);
+      const hit = !cancelled && Math.abs(dx) >= SWIPE_AT;
+      row.classList.remove('swiping', 'armed');
+      row.style.transition = 'transform .18s var(--ease)';
+      row.style.transform = hit ? `translateX(${dx > 0 ? '' : '-'}110%)` : '';
+      setTimeout(() => {
+        row.style.transition = '';
+        row.classList.remove('sw-r', 'sw-l');
+        if (!hit) { row.style.transform = ''; return; }
+        haptic('success');
+        if (dx > 0) toggle(id);
+        else archive(id);
+      }, 180);
+    };
+    container.addEventListener('pointerup', (e) => end(e, false));
+    container.addEventListener('pointercancel', (e) => end(e, true));
+  }
+
   // 右上の ＋: 詳細つきの新規タスク入力。
   function newTask() {
     const opts = ORBIT.projectOptions(store.state);
@@ -148,7 +226,8 @@
       title: '新しいタスク', doneLabel: '追加', cancelLabel: 'キャンセル',
       html: `
         <label class="field"><span>タイトル</span><textarea class="inp" name="title" rows="2" style="min-height:0" placeholder="やること"></textarea></label>
-        <label class="field"><span>メモ</span><textarea class="inp" name="notes" placeholder="メモ"></textarea></label>
+        <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…"></textarea></label>
+        <div class="links" data-links></div>
         <div class="field"><span>緊急度</span><div class="seg" data-seg="urgency">
           ${[1, 2, 3, 4].map((u) => `<button type="button" data-v="${u}" class="${u === urgency ? 'on' : ''}">${URGENCY[u]}</button>`).join('')}</div></div>
         <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
@@ -162,6 +241,7 @@
           body.querySelectorAll('[data-seg="urgency"] button').forEach((x) => x.classList.toggle('on', x === b));
         });
         body.querySelector('[data-clear="due"]').onclick = () => { body.querySelector('[name="due"]').value = ''; };
+        bindLinks(body);
         body.querySelector('[name="title"]').focus();
       },
       done(body) {
@@ -181,6 +261,7 @@
   function init() {
     const list = $('#todoList');
     bindList(list, { onFocus: (id) => ORBIT.focus.open(id) });
+    bindSwipe(list);
     ORBIT.ui.sortable(list, {
       canDrag: (row) => !!row.closest('#todoActive'),
       onDrop: ({ ids }) => store.commit((s, now) => C.reorderTodo(s, ids, now)),

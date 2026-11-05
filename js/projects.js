@@ -357,17 +357,23 @@
     title: 'アーカイブ',
     render(state, el) {
       const list = C.archivedProjects(state);
-      el.innerHTML = list.length ? `<ul class="list">${list.map((p) => {
+      const tasks = C.archivedTasks(state);
+      const taskHtml = tasks.length ? `<h4 class="note" style="margin:16px 20px 4px">アーカイブしたタスク</h4><ul class="list">${tasks.map((t) => `<li class="row" data-tid="${esc(t.id)}" style="align-items:center">
+          <div class="body"><div class="title">${esc(t.title)}</div></div>
+          <button class="pill" data-act="untask" style="min-width:0;height:38px;padding:0 14px">${icon('restore', 'sm')}復元</button></li>`).join('')}</ul>` : '';
+      el.innerHTML = taskHtml + (list.length ? `<h4 class="note" style="margin:16px 20px 4px">アーカイブしたプロジェクト</h4>` : '') + (list.length ? `<ul class="list">${list.map((p) => {
         const path = C.path(state, p.id).slice(0, -1).map((x) => x.name).join(' › ');
         const pr = C.progress(state, p.id);
         return `<li class="row" data-id="${esc(p.id)}" style="align-items:center">${folderIcon(COLORS[p.color] || COLORS.blue)}
           <div class="body"><div class="title">${esc(p.name)} <span class="count num" style="color:var(--fg-2);font-size:12.5px">${pr.done}/${pr.total}</span></div>
           ${path ? `<div class="res-path">${esc(path)}</div>` : ''}</div>
           <button class="pill" data-act="unarchive" style="min-width:0;height:38px;padding:0 14px">${icon('restore', 'sm')}復元</button></li>`;
-      }).join('')}</ul>` : `<div class="empty"><div class="orb"></div>アーカイブ済みのプロジェクトはありません</div>`;
+      }).join('')}</ul>` : (tasks.length ? '' : `<div class="empty"><div class="orb"></div>アーカイブ済みの項目はありません</div>`));
     },
     mount(el) {
       el.addEventListener('click', (e) => {
+        const tb = e.target.closest('[data-act="untask"]');
+        if (tb) { store.commit((s, now) => C.setTaskArchived(s, tb.closest('[data-tid]').dataset.tid, false, now), { undo: '復元しました' }); return; }
         const b = e.target.closest('[data-act="unarchive"]'); if (!b) return;
         const id = b.closest('[data-id]').dataset.id;
         store.commit((s, now) => C.setArchived(s, id, false, now), { undo: '復元しました' });

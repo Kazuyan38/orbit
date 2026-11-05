@@ -378,12 +378,12 @@
           <button data-step="-1" data-key="${key}" aria-label="${label}を減らす">−</button><span class="v num">${s[key]}${unit}</span>
           <button data-step="1" data-key="${key}" aria-label="${label}を増やす">＋</button></div></div>`).join('')}
         <h4 class="note" style="margin-top:22px">データ</h4>
-        <button class="menu-item" data-set="archive">${icon('archive')}アーカイブ済みプロジェクト</button>
+        <button class="menu-item" data-set="archive">${icon('archive')}アーカイブ</button>
         <button class="menu-item" data-set="trash">${icon('trash')}ごみ箱</button>
         <button class="menu-item" data-set="export">${icon('download')}バックアップを書き出す</button>
         <button class="menu-item" data-set="import">${icon('upload')}バックアップから復元</button>
         <p class="note">データはこの端末のブラウザ内に保存されます${persisted === true ? '（消去されにくい永続ストレージ）' : ''}${ORBIT.account.user ? '。ログイン中はクラウドにも同期されます' : ''}。iPhone では「ホーム画面に追加」して使うと、しばらく開かなくてもデータが消されません。定期的なバックアップを推奨します。</p>
-        <p class="note" style="color:var(--fg-3)">ORBIT v0.5.0</p></div>`;
+        <p class="note" style="color:var(--fg-3)">ORBIT v0.6.0</p></div>`;
     },
   };
 

@@ -80,7 +80,7 @@
 
   function isEmptyState(s) {
     return !Object.keys(s.tasks).length && !Object.keys(s.projects).length && !Object.keys(s.reviews).length
-      && !Object.keys(s.books).length && !Object.keys(s.habits).length && !s.focusLog.length;
+      && !Object.keys(s.books).length && !Object.keys(s.habits).length && !Object.keys(s.memos || {}).length && !s.focusLog.length;
   }
 
   function stash(text, label) {

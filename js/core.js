@@ -27,7 +27,7 @@
       version: 1,
       tasks: {}, projects: {}, trash: {}, tombstones: {},
       focus: null, carryOver: [], focusLog: [], pomodoroLog: [],
-      reviews: {}, books: {}, habits: {},
+      reviews: {}, books: {}, habits: {}, memos: {},
       settings: defaultSettings(),
       ui: { expanded: [], completedOpen: [] },
     };
@@ -47,7 +47,7 @@
     if (!isObj(raw)) throw new Error('invalid state');
     if (raw.version != null && raw.version !== 1) throw new Error(`unsupported version ${raw.version}`);
     const s = createState();
-    for (const key of ['tasks', 'projects', 'trash', 'tombstones', 'reviews', 'books', 'habits']) {
+    for (const key of ['tasks', 'projects', 'trash', 'tombstones', 'reviews', 'books', 'habits', 'memos']) {
       if (raw[key] != null && !isObj(raw[key])) throw new Error(`invalid ${key}`);
       s[key] = raw[key] ? raw[key] : {};
     }
@@ -1024,6 +1024,36 @@
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
+  const Memos = {
+    create(state, text, now) {
+      const clean = String(text == null ? '' : text).trim();
+      if (!clean) return null;
+      const m = { id: uid(), text: clean, createdAt: now, updatedAt: now };
+      state.memos[m.id] = m;
+      return m;
+    },
+    update(state, id, text, now) {
+      const m = state.memos[id];
+      const clean = String(text == null ? '' : text).trim();
+      if (!m || !clean) return null;
+      m.text = clean; m.updatedAt = now;
+      return m;
+    },
+    remove(state, id) { delete state.memos[id]; },
+    list(state) { return values(state.memos).sort((a, b) => b.createdAt - a.createdAt); },
+    /** メモをタスクに変える。1 行目をタイトル、残りをメモ欄に入れ、メモは消す。 */
+    toTask(state, id, now) {
+      const m = state.memos[id];
+      if (!m) return null;
+      const [first, ...rest] = m.text.split('\n');
+      const t = createTask(state, { title: first.trim() || m.text.slice(0, 60) }, now);
+      const notes = rest.join('\n').trim();
+      if (notes) updateTask(state, t.id, { notes }, now);
+      delete state.memos[id];
+      return t;
+    },
+  };
+
   const Books = {
     create(state, { title, author = '', totalPages = null } = {}, now) {
       const clean = String(title == null ? '' : title).trim();
@@ -1196,7 +1226,7 @@
     projectTasks, progress, isEffectivelyArchived, setArchived, archivedProjects, deletionPreview, deleteProject,
     treeRows, search,
     trashList, restoreBatch, purgeTrash, deleteBatchNow,
-    Pomodoro, Focus, Stats, Review, Books, Habits,
+    Pomodoro, Focus, Stats, Review, Books, Habits, Memos,
     updateSettings,
     PROJECT_COLORS,
   };

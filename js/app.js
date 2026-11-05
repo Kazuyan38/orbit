@@ -100,7 +100,7 @@
     if (b.dataset.act === 'launcher') toggleLauncher(true);
   });
 
-  const LAUNCH = [['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'], ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule']];
+  const LAUNCH = [['projects', 'folder', 'Projects'], ['review', 'review', 'Review'], ['reading', 'book', 'Reading'], ['habits', 'habit', 'Habits'], ['schedule', 'cal', 'Schedule'], ['memos', 'note', 'Memo']];
   function toggleLauncher(show) {
     const el = $('#launcher');
     const scrim = $('#scrim');

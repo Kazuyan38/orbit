@@ -83,6 +83,22 @@
   /* ---------- sheet ---------- */
   let sheetOnClose = null;
   let closeTimer = 0;
+  // iOS はキーボードを出しても fixed 要素の基準（レイアウトビューポート）が変わらず、下端のシートがキーボードの裏に隠れる。
+  // visualViewport からキーボード分を求め、シートを持ち上げて高さも詰める。
+  function fitSheet() {
+    const sheet = $('#sheet');
+    const vv = window.visualViewport;
+    if (!vv || sheet.hidden) return;
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    sheet.style.bottom = `${kb}px`;
+    sheet.style.maxHeight = kb ? `${Math.round(vv.height * 0.94)}px` : '';
+    const a = document.activeElement;
+    if (kb && a && sheet.contains(a) && a.scrollIntoView) setTimeout(() => a.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitSheet);
+    window.visualViewport.addEventListener('scroll', fitSheet);
+  }
   function openSheet({ title = '', html = '', done = null, doneLabel = '保存', cancelLabel = '閉じる', onMount = null, onClose = null }) {
     const sheet = $('#sheet');
     const scrim = $('#scrim');
@@ -110,7 +126,7 @@
     scrim.classList.remove('show');
     const cb = sheetOnClose;
     sheetOnClose = null;
-    closeTimer = setTimeout(() => { sheet.hidden = true; scrim.hidden = true; sheet.innerHTML = ''; }, 260);
+    closeTimer = setTimeout(() => { sheet.hidden = true; scrim.hidden = true; sheet.innerHTML = ''; sheet.style.bottom = ''; sheet.style.maxHeight = ''; }, 260);
     if (cb) cb();
   }
   const sheetOpen = () => !$('#sheet').hidden;

@@ -51,13 +51,16 @@
   async function rpc(name, args, { keepalive = false } = {}) {
     if (!API_URL || !API_KEY) throw new ApiError('config');
     let res;
+    // 電波が弱いと fetch は返らないままになり、ボタンが押せない状態で固まる。15 秒で打ち切って通信エラーとして扱う。
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 15000);
     try {
       res = await fetch(`${API_URL}/rest/v1/rpc/${name}`, {
-        method: 'POST', keepalive,
+        method: 'POST', keepalive, signal: ctl.signal,
         headers: { apikey: API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify(args),
       });
-    } catch (_) { throw new ApiError('network'); }
+    } catch (_) { throw new ApiError('network'); } finally { clearTimeout(timer); }
     const text = await res.text();
     let body = null;
     try { body = text ? JSON.parse(text) : null; } catch (_) { /* 本文が JSON でない（障害時の HTML など） */ }
@@ -364,6 +367,8 @@
       const local = mode === 'signup' ? validate(username, password, f.invite.value) : (!username || !password ? '入力してください' : '');
       if (local) { err.textContent = local; return; }
       btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = '通信中…';
       err.textContent = '';
       try {
         const res = mode === 'signup'
@@ -374,6 +379,7 @@
       } catch (ex) {
         err.textContent = message(ex);
         btn.disabled = false;
+        btn.textContent = label;
       }
     });
   }

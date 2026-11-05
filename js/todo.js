@@ -189,7 +189,8 @@
     let g = null;
     container.addEventListener('pointerdown', (e) => {
       const row = e.target.closest('li.row[data-kind="task"], li.row[data-kind="review"]');
-      if (!row || e.target.closest('.chk, .play') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      // 画面左端 24px からの右スワイプは Safari の「戻る」ジェスチャーが先に動くので、行のスワイプとしては扱わない。
+      if (!row || e.target.closest('.chk, .play') || (e.pointerType === 'mouse' && e.button !== 0) || (e.pointerType === 'touch' && e.clientX < 24)) return;
       g = { row, id: row.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false };
     });
     container.addEventListener('pointermove', (e) => {

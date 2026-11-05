@@ -393,7 +393,8 @@
         const d = new Date(b.start);
         if (an.tab === 'month') return `${d.getMonth() + 1}月`;
         if (an.tab === 'week') return `${d.getMonth() + 1}/${d.getDate()}`;
-        return `${d.getDate()}${an.tab === 'day' ? '' : ''}`;
+        // 日表示は、先頭と 1 日だけ月を付けて月またぎを読み取れるようにする。
+        return b === buckets[0] || d.getDate() === 1 ? `${d.getMonth() + 1}/${d.getDate()}` : `${d.getDate()}`;
       };
       const longLabel = (b) => {
         const d = new Date(b.start);
@@ -458,7 +459,7 @@
         <button class="menu-item" data-set="export">${icon('download')}バックアップを書き出す</button>
         <button class="menu-item" data-set="import">${icon('upload')}バックアップから復元</button>
         <p class="note">データはこの端末のブラウザ内に保存されます${persisted === true ? '（消去されにくい永続ストレージ）' : ''}${ORBIT.account.user ? '。ログイン中はクラウドにも同期されます' : ''}。iPhone では「ホーム画面に追加」して使うと、しばらく開かなくてもデータが消されません。定期的なバックアップを推奨します。</p>
-        <p class="note" style="color:var(--fg-3)">ORBIT v0.7.1</p></div>`;
+        <p class="note" style="color:var(--fg-3)">ORBIT v0.7.2</p></div>`;
     },
   };
 

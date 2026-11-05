@@ -1,0 +1,18 @@
+{
+  "name": "ORBIT",
+  "short_name": "ORBIT",
+  "description": "ToDo・プロジェクト・ポモドーロ・復習・読書・習慣を一つの軌道で管理する",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080D18",
+  "theme_color": "#080D18",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

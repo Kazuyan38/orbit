@@ -40,6 +40,7 @@
     turtle: '<path d="M4 15c0-4 3.5-7 8-7s8 3 8 7zM8 15v3M16 15v3M20 13h2"/>',
     download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     upload: '<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>',
+    repeat: '<path d="M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4"/>',
   };
   function icon(name, cls = '') {
     return `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
@@ -50,6 +51,7 @@
     pink: '#EC4899', yellow: '#EAB308', cyan: '#06B6D4', red: '#EF4444',
   };
   const COLOR_LABEL = { blue: 'ブルー', purple: 'パープル', green: 'グリーン', orange: 'オレンジ', pink: 'ピンク', yellow: 'イエロー', cyan: 'シアン', red: 'レッド' };
+  const REPEAT = { daily: '毎日', weekdays: '平日', weekly: '毎週', monthly: '毎月' };
   const URGENCY = { 1: 'できるだけ早く', 2: 'なるべく早めに', 3: '通常', 4: 'ゆっくりでいい' };
 
   function haptic(kind = 'light') {
@@ -257,6 +259,6 @@
     }
   }
 
-  ORBIT.ui = { $, $$, esc, icon, COLORS, COLOR_LABEL, URGENCY, haptic, today, fmtDue, fmtDuration, fmtClock,
+  ORBIT.ui = { $, $$, esc, icon, COLORS, COLOR_LABEL, URGENCY, REPEAT, haptic, today, fmtDue, fmtDuration, fmtClock,
     openSheet, closeSheet, sheetOpen, toast, hideToast, sortable, urlsIn, linkify, linkLabel };
 })();

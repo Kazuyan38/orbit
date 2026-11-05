@@ -192,10 +192,29 @@
     saveSync();
   }
 
-  // 両方に変更があるときは自動で片方を捨てない。選ばなかった方は端末内に退避する。
+  // 両方に変更があるときは、ID（タスク・プロジェクトなど）ごとにあとから更新した方を採って統合する。
+  // 統合前の両方を端末内に退避しておくので、結果が意に沿わなければ設定から戻せる。
+  function autoMerge(res) {
+    let merged;
+    try { merged = C.mergeStates(JSON.parse(payloadText()), res.data); } catch (e) { console.error(e); return false; }
+    stash(payloadText(), '統合前（この端末側）');
+    stash(JSON.stringify(res.data), '統合前（クラウド側）');
+    merged.ui = store.state.ui;
+    applying = true;
+    try { store.replace(merged); } finally { applying = false; }
+    sync.rev = res.rev;
+    sync.dirty = true;
+    saveSync();
+    push();
+    toast('別の端末の変更を統合しました');
+    return true;
+  }
+
+  // 統合できないほど壊れているときだけ、利用者に選んでもらう。選ばなかった方は端末内に退避する。
   function conflict(res) {
     if (conflictShown) return;
     if (sheetOpen()) { setTimeout(() => conflict(res), 3000); return; }
+    if (autoMerge(res)) return;
     conflictShown = true;
     const when = res.updated_at ? new Date(res.updated_at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     let decided = false;
@@ -261,6 +280,7 @@
     }
     hideGate();
     pull();
+    if (ORBIT.push) ORBIT.push.probe();
   }
 
   function replaceLocal(next) {
@@ -290,6 +310,7 @@
     }
     if (sync.dirty) stash(payloadText(), `@${session.username} の未同期の変更`);
     const token = session.token;
+    if (ORBIT.push) await ORBIT.push.detach();
     rpc('orbit_logout', { p_token: token }).catch(() => {});
     newGeneration();
     session = null;
@@ -560,7 +581,7 @@
     const items = backupKeys().reverse().map((k) => ({ k, v: read(k) })).filter((x) => x.v && x.v.data);
     openSheet({
       title: '退避データ',
-      html: `<p class="note">同期の競合やアカウント切り替えのときに、選ばれなかったデータをここに残しています（最新 5 件）。</p>
+      html: `<p class="note">同期の統合前やアカウント切り替えのときのデータをここに残しています（最新 5 件）。</p>
         ${items.map(({ k, v }) => `<div class="invite-row"><div><div>${esc(v.label || '退避データ')}</div>
           <div class="note" style="margin:2px 0 0">${esc(new Date(v.at).toLocaleString('ja-JP'))} ・ タスク ${Object.keys(v.data.tasks || {}).length} 件</div></div>
           <span><button class="txt" data-restore="${esc(k)}">この内容に戻す</button><button class="txt danger" data-drop="${esc(k)}">削除</button></span></div>`).join('')}`,
@@ -601,7 +622,7 @@
   window.addEventListener('online', () => { if (session) { sync.error = null; push().then(pull); } });
 
   ORBIT.account = {
-    init, settingsHTML, action,
+    init, settingsHTML, action, rpc,
     get user() { return session; },
   };
 })();

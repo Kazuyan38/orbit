@@ -3,7 +3,7 @@
   'use strict';
   const ORBIT = window.ORBIT;
   const C = window.OrbitCore;
-  const { $, esc, icon, COLORS, URGENCY, fmtDue, today, haptic, urlsIn, linkLabel } = ORBIT.ui;
+  const { $, esc, icon, COLORS, URGENCY, REPEAT, fmtDue, today, haptic, urlsIn, linkLabel } = ORBIT.ui;
   const store = ORBIT.store;
 
   function projectColor(state, task) {
@@ -21,6 +21,7 @@
       const late = !task.completed && task.dueDate < today();
       meta.push(`<span class="${late ? 'late' : ''}">${icon('cal', 'sm')}${fmtDue(task.dueDate)}</span>`);
     }
+    if (task.repeat) meta.push(`<span>${icon('repeat', 'sm')}${REPEAT[task.repeat]}</span>`);
     if (urlsIn(task.notes).length) meta.push(`<span>${icon('link', 'sm')}リンク</span>`);
     const color = dot && projectColor(state, task);
     return `<li class="row ${task.completed ? 'done' : ''} ${cls}" data-id="${esc(task.id)}" data-kind="task">
@@ -106,6 +107,20 @@
     });
   }
 
+  /** 繰り返しの選択（なし／毎日／平日／毎週／毎月）。 */
+  function repeatField(current) {
+    const opts = [['', 'なし'], ...Object.entries(REPEAT)];
+    return `<div class="field"><span>繰り返し</span><div class="seg" data-seg="repeat">
+      ${opts.map(([v, label]) => `<button type="button" data-v="${v}" class="${v === (current || '') ? 'on' : ''}">${label}</button>`).join('')}</div></div>`;
+  }
+  function bindRepeat(body, onPick) {
+    body.querySelector('[data-seg="repeat"]').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      onPick(b.dataset.v || null);
+      body.querySelectorAll('[data-seg="repeat"] button').forEach((x) => x.classList.toggle('on', x === b));
+    });
+  }
+
   /* ---------- タスク詳細 ---------- */
   function openTaskSheet(id) {
     const s = store.state;
@@ -113,6 +128,7 @@
     if (!t) return;
     const opts = ORBIT.projectOptions(s);
     let urgency = t.urgency;
+    let repeat = t.repeat || null;
     const inFocus = s.focus && s.focus.items.some((it) => it.taskId === id);
     ORBIT.ui.openSheet({
       title: 'タスク',
@@ -125,6 +141,7 @@
         <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
           <input class="inp" type="date" name="due" value="${esc(t.dueDate || '')}">
           <button type="button" class="ib" data-clear="due" aria-label="期限をなくす">${icon('close')}</button></div></label>
+        ${repeatField(repeat)}
         <label class="field"><span>プロジェクト</span><select class="inp" name="project">
           <option value="">未分類</option>
           ${opts.map((o) => `<option value="${esc(o.id)}" ${o.id === t.projectId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
@@ -140,6 +157,7 @@
           body.querySelectorAll('[data-seg="urgency"] button').forEach((x) => x.classList.toggle('on', x === b));
         });
         body.querySelector('[data-clear="due"]').onclick = () => { body.querySelector('[name="due"]').value = ''; };
+        bindRepeat(body, (v) => { repeat = v; });
         bindLinks(body);
         body.addEventListener('click', (e) => {
           const x = e.target.closest('[data-x]'); if (!x) return;
@@ -157,8 +175,9 @@
           title,
           notes: body.querySelector('[name="notes"]').value,
           urgency,
-          dueDate: body.querySelector('[name="due"]').value || null,
+          dueDate: body.querySelector('[name="due"]').value || (repeat ? today() : null),
           projectId: body.querySelector('[name="project"]').value || null,
+          repeat,
         };
         store.commit((st, now) => C.updateTask(st, id, patch, now));
         return true;
@@ -243,20 +262,23 @@
   }
 
   // 右上の ＋: 詳細つきの新規タスク入力。
-  function newTask() {
+  function newTask(prefill = {}) {
     const opts = ORBIT.projectOptions(store.state);
     let urgency = 3;
+    let repeat = null;
     ORBIT.ui.openSheet({
       title: '新しいタスク', doneLabel: '追加', cancelLabel: 'キャンセル',
       html: `
-        <label class="field"><span>タイトル</span><textarea class="inp" name="title" rows="2" style="min-height:0" placeholder="やること"></textarea></label>
-        <details class="more"><summary>メモ・期限などを追加</summary>
-          <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…"></textarea></label>
+        <label class="field"><span>タイトル</span><textarea class="inp" name="title" rows="2" style="min-height:0" placeholder="例: 明日 牛乳を買う ／ 毎週月曜 ゴミ出し">${esc(prefill.title || '')}</textarea></label>
+        <p class="note" data-quick hidden style="margin:-6px 0 10px"></p>
+        <details class="more" ${prefill.notes ? 'open' : ''}><summary>メモ・期限などを追加</summary>
+          <label class="field"><span>メモ・リンク（URL を貼り付けられます）</span><textarea class="inp" name="notes" placeholder="メモ / https://…">${esc(prefill.notes || '')}</textarea></label>
           <div class="links" data-links></div>
           <div class="field"><span>緊急度</span><div class="seg" data-seg="urgency">
             ${[1, 2, 3, 4].map((u) => `<button type="button" data-v="${u}" class="${u === urgency ? 'on' : ''}">${URGENCY[u]}</button>`).join('')}</div></div>
           <label class="field"><span>期限</span><div class="btn-row" style="align-items:center">
             <input class="inp" type="date" name="due"><button type="button" class="ib" data-clear="due" aria-label="期限をなくす">${icon('close')}</button></div></label>
+          ${repeatField(null)}
           <label class="field"><span>プロジェクト</span><select class="inp" name="project"><option value="">未分類</option>
             ${opts.map((o) => `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join('')}</select></label></details>`,
       onMount(body) {
@@ -266,18 +288,35 @@
           body.querySelectorAll('[data-seg="urgency"] button').forEach((x) => x.classList.toggle('on', x === b));
         });
         body.querySelector('[data-clear="due"]').onclick = () => { body.querySelector('[name="due"]').value = ''; };
+        bindRepeat(body, (v) => { repeat = v; });
         bindLinks(body);
-        body.querySelector('[name="title"]').focus();
+        const titleEl = body.querySelector('[name="title"]');
+        const hint = body.querySelector('[data-quick]');
+        const paintQuick = () => {
+          const q = C.parseQuick(titleEl.value, today());
+          const parts = [];
+          if (q.dueDate) parts.push(`期限 ${fmtDue(q.dueDate)}`);
+          if (q.repeat) parts.push(`繰り返し ${REPEAT[q.repeat]}`);
+          hint.hidden = !parts.length;
+          hint.textContent = parts.length ? `${parts.join('・')} として追加します（「${q.title}」）` : '';
+        };
+        titleEl.addEventListener('input', paintQuick);
+        paintQuick();
+        titleEl.focus();
       },
       done(body) {
-        const title = body.querySelector('[name="title"]').value.trim();
-        if (!title) { body.querySelector('[name="title"]').focus(); return false; }
+        const raw = body.querySelector('[name="title"]').value.trim();
+        if (!raw) { body.querySelector('[name="title"]').focus(); return false; }
+        const q = C.parseQuick(raw, today());
+        const useRepeat = repeat || q.repeat;
         const patch = {
           notes: body.querySelector('[name="notes"]').value, urgency,
-          dueDate: body.querySelector('[name="due"]').value || null,
+          // 手で選んだ期限・繰り返しを、タイトルの文面より優先する。
+          dueDate: body.querySelector('[name="due"]').value || q.dueDate || (useRepeat ? today() : null),
           projectId: body.querySelector('[name="project"]').value || null,
+          repeat: useRepeat,
         };
-        store.commit((st, now) => { const t = C.createTask(st, { title }, now); C.updateTask(st, t.id, patch, now); });
+        store.commit((st, now) => { const t = C.createTask(st, { title: q.title }, now); C.updateTask(st, t.id, patch, now); });
         return true;
       },
     });

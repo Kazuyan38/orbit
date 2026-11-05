@@ -8,6 +8,7 @@
   const URGENCY_DEFAULT = 3;
   const PROJECT_COLORS = ['blue', 'purple', 'green', 'orange', 'pink', 'yellow', 'cyan', 'red'];
   const BOOK_STATUSES = ['want', 'reading', 'done'];
+  const REPEATS = ['daily', 'weekdays', 'weekly', 'monthly'];
 
   /* ======================= 基本 ======================= */
 
@@ -72,6 +73,9 @@
       if (typeof t.projectOrder !== 'number') t.projectOrder = 0;
       if (t.deletedAt === undefined) t.deletedAt = null;
       if (typeof t.rev !== 'number') t.rev = 0;
+      if (!REPEATS.includes(t.repeat)) t.repeat = null;
+      if (!Number.isInteger(t.repeatDay)) t.repeatDay = null;
+      if (typeof t.spawnedId !== 'string') t.spawnedId = null;
     }
     for (const p of values(s.projects)) {
       if (!isObj(p) || typeof p.id !== 'string') throw new Error('invalid project');
@@ -134,7 +138,7 @@
     return max + 1;
   }
 
-  function createTask(state, { title, notes = '', projectId = null, urgency = URGENCY_DEFAULT, dueDate = null } = {}, now) {
+  function createTask(state, { title, notes = '', projectId = null, urgency = URGENCY_DEFAULT, dueDate = null, repeat = null } = {}, now) {
     const clean = String(title == null ? '' : title).trim();
     if (!clean) return null;
     const project = liveProject(state, projectId);
@@ -151,6 +155,9 @@
       projectId: project ? project.id : null,
       todoOrder: maxTodo + 1,
       projectOrder: project ? nextProjectOrder(state, project.id) : 0,
+      repeat: REPEATS.includes(repeat) ? repeat : null,
+      repeatDay: null,
+      spawnedId: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -193,8 +200,48 @@
         changed = true;
       }
     }
+    if ('repeat' in patch) {
+      const v = REPEATS.includes(patch.repeat) ? patch.repeat : null;
+      if (v !== t.repeat) { t.repeat = v; changed = true; }
+    }
+    if (t.repeat === 'monthly' && t.dueDate && t.repeatDay !== Number(t.dueDate.slice(8))) {
+      t.repeatDay = Number(t.dueDate.slice(8)); changed = true;
+    } else if (t.repeat !== 'monthly' && t.repeatDay != null) { t.repeatDay = null; changed = true; }
     if (changed) touch(t, now);
     return t;
+  }
+
+  /* ---------- 繰り返し ---------- */
+
+  function stepDue(repeat, key, anchorDay) {
+    if (repeat === 'daily') return Dates.addDays(key, 1);
+    if (repeat === 'weekly') return Dates.addDays(key, 7);
+    if (repeat === 'weekdays') {
+      let k = Dates.addDays(key, 1);
+      while (Dates.weekday(k) === 0 || Dates.weekday(k) === 6) k = Dates.addDays(k, 1);
+      return k;
+    }
+    const [y, m, d] = splitKey(key);
+    const last = new Date(y, m + 2, 0).getDate();   // 翌月の末日（31 日起点で 2 月が 28 日になる月への対応）
+    return keyOf(new Date(y, m + 1, Math.min(anchorDay || d, last)));
+  }
+
+  /** 次回の期限。基準日（期限、無ければ今日）から 1 周期ずつ進め、今日より後になる最初の日。 */
+  function nextDue(repeat, baseKey, todayKey, anchorDay) {
+    let n = stepDue(repeat, baseKey, anchorDay);
+    while (n <= todayKey) n = stepDue(repeat, n, anchorDay);
+    return n;
+  }
+
+  function spawnNext(state, t, now) {
+    const todayKey = Dates.dayKey(now);
+    const next = createTask(state, { title: t.title, notes: t.notes, projectId: t.projectId, urgency: t.urgency, repeat: t.repeat }, now);
+    next.dueDate = nextDue(t.repeat, t.dueDate || todayKey, todayKey, t.repeatDay);
+    next.repeatDay = t.repeat === 'monthly' ? (t.repeatDay || Number((t.dueDate || todayKey).slice(8))) : null;
+    next.todoOrder = t.todoOrder;
+    next.projectOrder = t.projectOrder;
+    t.spawnedId = next.id;
+    return next;
   }
 
   function setCompleted(state, id, done, now) {
@@ -202,6 +249,18 @@
     if (t.completed === !!done) return t;
     t.completed = !!done;
     t.completedAt = done ? now : null;
+    if (done && t.repeat && !live(state.tasks[t.spawnedId])) spawnNext(state, t, now);
+    if (!done && t.spawnedId) {
+      // 完了を取り消したら、まだ誰も触っていない次回分は片付ける（二重に残さない）。
+      const n = state.tasks[t.spawnedId];
+      if (n && live(n) && !n.completed && n.rev === 0) {
+        delete state.tasks[n.id];
+        state.tombstones[n.id] = now;
+        dropFromFocus(state, [n.id]);
+        state.carryOver = state.carryOver.filter((x) => x !== n.id);
+      }
+      t.spawnedId = null;
+    }
     touch(t, now);
     return t;
   }
@@ -1057,7 +1116,7 @@
       m.text = clean; m.updatedAt = now;
       return m;
     },
-    remove(state, id) { delete state.memos[id]; },
+    remove(state, id, now = 0) { delete state.memos[id]; state.tombstones[id] = now; },
     list(state) { return values(state.memos).sort((a, b) => b.createdAt - a.createdAt); },
     /** メモをタスクに変える。1 行目をタイトル、残りをメモ欄に入れ、メモは消す。 */
     toTask(state, id, now) {
@@ -1295,8 +1354,140 @@
     return s;
   }
 
+
+  /* ======================= 自然文の入力 ======================= */
+  // 「明日 牛乳を買う」「レポート 来週月曜」「毎週月曜 ゴミ出し」のように、タイトルの先頭か末尾にある日付・繰り返しを読み取る。
+  // 本文の途中は読まない（「今日の天気を調べる」を壊さないため）。
+
+  const WD_CHARS = '日月火水木金土';
+  const DATE_TOKEN = '(?:来週の?)?[日月火水木金土]曜日?|今日|明日|明後日|あさって|来週|\\d{1,3}日後|\\d{1,2}月\\d{1,2}日|\\d{1,2}/\\d{1,2}';
+  const REPEAT_TOKEN = '毎平日|毎日|毎週|毎月';
+  const TOKEN = `(?:${REPEAT_TOKEN}|${DATE_TOKEN})`;
+  // 日付の直後は「まで」「に」か空白・末尾でなければ読まない（「今日の天気」「月曜日報」を壊さない）。
+  const HEAD_RE = new RegExp(`^(${TOKEN})(?:(?:まで)?に[\\s、,]*|まで[\\s、,]*|[\\s、,]+|$|(?=${DATE_TOKEN}))`);
+  const TAIL_RE = new RegExp(`(?:^|[\\s、,]+)(${TOKEN})(?:まで)?に?$`);
+  const REPEAT_OF = { 毎日: 'daily', 毎平日: 'weekdays', 毎週: 'weekly', 毎月: 'monthly' };
+
+  function tokenToDay(tok, todayKey) {
+    if (tok === '今日') return todayKey;
+    if (tok === '明日') return Dates.addDays(todayKey, 1);
+    if (tok === '明後日' || tok === 'あさって') return Dates.addDays(todayKey, 2);
+    if (tok === '来週') return Dates.addDays(todayKey, 7);
+    let m = tok.match(/^(\d+)日後$/);
+    if (m) return Dates.addDays(todayKey, Number(m[1]));
+    m = tok.match(/^(来週の?)?([日月火水木金土])曜日?$/);
+    if (m) {
+      const target = WD_CHARS.indexOf(m[2]);
+      const wd = Dates.weekday(todayKey);
+      if (m[1]) return Dates.addDays(Dates.addDays(todayKey, 7 - ((wd + 6) % 7)), (target + 6) % 7);
+      return Dates.addDays(todayKey, ((target - wd + 7) % 7) || 7);
+    }
+    m = tok.match(/^(\d{1,2})(?:月|\/)(\d{1,2})日?$/);
+    if (m) {
+      const mo = Number(m[1]);
+      const d = Number(m[2]);
+      const [y] = splitKey(todayKey);
+      for (const yy of [y, y + 1]) {
+        const dt = new Date(yy, mo - 1, d);
+        if (dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;   // 2/30 など存在しない日付
+        const key = keyOf(dt);
+        if (key >= todayKey) return key;
+      }
+    }
+    return null;
+  }
+
+  function parseQuick(text, todayKey) {
+    let rest = String(text == null ? '' : text).replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/／/g, '/').trim();
+    const original = rest;
+    let dueDate = null;
+    let repeat = null;
+    const found = [];
+    for (let guard = 0; guard < 4; guard += 1) {
+      const m = rest.match(HEAD_RE) || rest.match(TAIL_RE);
+      if (!m) break;
+      const tok = m[1];
+      if (REPEAT_OF[tok]) {
+        if (repeat) break;
+        repeat = REPEAT_OF[tok];
+      } else {
+        const day = tokenToDay(tok, todayKey);
+        if (!day || dueDate) break;
+        dueDate = day;
+      }
+      found.push(tok);
+      rest = (m.index === 0 ? rest.slice(m[0].length) : rest.slice(0, m.index)).trim();
+    }
+    // 日付を決めない繰り返しは今日から数える。「毎週月曜」のように曜日があれば、その曜日が最初の期限になる。
+    if (repeat && !dueDate) dueDate = todayKey;
+    if (!rest) return { title: original, dueDate: null, repeat: null, found: [] };
+    return { title: rest, dueDate, repeat, found };
+  }
+
+  /* ======================= 同期のマージ ======================= */
+  // 端末とクラウドの両方に変更があるときの統合。共通の祖先は持たないので、ID ごとに「あとから更新した方」を採る。
+  // 完全削除（tombstones）は復活させない。時刻は更新時刻（端末の時計）に頼るため、同時刻なら rev の大きい方、なお同じなら local。
+
+  const newer = (a, b) => ((b.updatedAt || 0) > (a.updatedAt || 0) || ((b.updatedAt || 0) === (a.updatedAt || 0) && (b.rev || 0) > (a.rev || 0)) ? b : a);
+
+  function mergeCollection(local, remote, tomb, combine) {
+    const out = {};
+    for (const id of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+      if (tomb[id] != null) continue;
+      const a = local[id];
+      const b = remote[id];
+      if (a && b) {
+        const win = newer(a, b);
+        out[id] = combine ? combine(win, win === a ? b : a) : win;
+      } else out[id] = a || b;
+    }
+    return out;
+  }
+
+  function dedupe(list, keyFn) {
+    const seen = new Set();
+    return list.filter((x) => { const k = keyFn(x); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  function mergeStates(local, remote) {
+    const a = migrate(local);
+    const b = migrate(remote);
+    const tomb = Object.assign({}, b.tombstones, a.tombstones);
+    const out = createState();
+    out.tombstones = tomb;
+    out.tasks = mergeCollection(a.tasks, b.tasks, tomb);
+    out.projects = mergeCollection(a.projects, b.projects, tomb);
+    out.reviews = mergeCollection(a.reviews, b.reviews, tomb);
+    out.memos = mergeCollection(a.memos, b.memos, tomb);
+    out.habits = mergeCollection(a.habits, b.habits, tomb, (win, lose) => {
+      // 習慣の達成日は両側の和集合（取り消しより記録の取りこぼしを避ける）。
+      win.completions = Object.assign({}, lose.completions, win.completions);
+      return win;
+    });
+    out.books = mergeCollection(a.books, b.books, tomb, (win, lose) => {
+      const hs = dedupe([...(win.highlights || []), ...(lose.highlights || [])], (h) => h.id);
+      if (hs.length) win.highlights = hs;
+      return win;
+    });
+    // ごみ箱の記録は、中身がまだ削除状態のものだけ残す（復元・完全削除済みの記録を復活させない）。
+    const batches = Object.assign({}, b.trash, a.trash);
+    for (const id of Object.keys(batches)) {
+      const bt = batches[id];
+      const stillTrashed = (bt.taskIds || []).some((t) => out.tasks[t] && out.tasks[t].deletedAt)
+        || (bt.projectIds || []).some((p) => out.projects[p] && out.projects[p].deletedAt);
+      if (stillTrashed) out.trash[id] = bt;
+    }
+    out.focusLog = dedupe([...a.focusLog, ...b.focusLog], (x) => `${x.start}-${x.end}`).sort((x, y) => x.start - y.start);
+    out.pomodoroLog = [...new Set([...a.pomodoroLog, ...b.pomodoroLog])].sort((x, y) => x - y);
+    out.carryOver = [...new Set([...a.carryOver, ...b.carryOver])].filter((id) => live(out.tasks[id]) && !out.tasks[id].completed && !out.tasks[id].archived);
+    out.focus = a.focus;
+    out.settings = a.settings;
+    out.ui = a.ui;
+    return out;
+  }
+
   const OrbitCore = {
-    createState, migrate, importData, uid,
+    createState, migrate, importData, uid, mergeStates, parseQuick, nextDue, REPEATS,
     Dates,
     createTask, updateTask, setCompleted, trashTask, setTaskArchived, archivedTasks, activeTodo, completedTodo, reorderTodo, orbitTasks,
     createProject, updateProject, children, descendants, ancestors, path, canMoveProject, moveProject, moveTask,

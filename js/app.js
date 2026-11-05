@@ -185,7 +185,29 @@
 
   ORBIT.account.init();
 
-  if (ORBIT.loadError) ORBIT.ui.toast('保存データを読み込めませんでした。元データは退避済みです（設定から確認できます）');
+  // クイック追加: ホーム画面アイコンの長押しメニュー（?add=1）、共有シート（?title=&text=&url=）、
+  // ショートカット等からの ?add=タイトル&notes=メモ。URL の中身は入力欄に入れるだけで、確認してから追加する。
+  (function quickAdd() {
+    const q = new URLSearchParams(location.search);
+    const add = q.get('add');
+    const shared = [q.get('title'), q.get('text'), q.get('url')].filter(Boolean);
+    if (add == null && !shared.length) return;
+    const prefill = add != null
+      ? { title: add === '1' ? '' : add, notes: q.get('notes') || '' }
+      : { title: shared[0], notes: shared.slice(1).join('\n') };
+    history.replaceState(null, '', location.pathname + location.hash);
+    let tries = 0;
+    const timer = setInterval(() => {
+      // ログイン画面が出ている間は待つ。
+      if (!$('#auth').hidden && ++tries < 240) return;
+      clearInterval(timer);
+      if (!$('#auth').hidden) return;
+      if (ORBIT.ui.sheetOpen()) return;
+      ORBIT.todo.newTask(prefill);
+    }, 500);
+  })();
+
+  if (ORBIT.loadError)ORBIT.ui.toast('保存データを読み込めませんでした。元データは退避済みです（設定から確認できます）');
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch((e) => console.warn('ORBIT: SW', e)));

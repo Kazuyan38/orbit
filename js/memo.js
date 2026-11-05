@@ -73,7 +73,7 @@
           const t = store.commit((s, now) => C.Memos.toTask(s, id, now), { undo: 'タスクにしました' });
           if (!t) return;
         } else if (b.dataset.m === 'del') {
-          store.commit((s) => C.Memos.remove(s, id), { undo: 'メモを削除しました' });
+          store.commit((s, now) => C.Memos.remove(s, id, now), { undo: 'メモを削除しました' });
         } else if (b.dataset.m === 'copy') {
           const m = store.state.memos[id];
           if (m && navigator.clipboard) navigator.clipboard.writeText(m.text).then(() => toast('コピーしました'), () => {});

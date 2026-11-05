@@ -163,6 +163,8 @@
   ORBIT.home3d.render(s);
   syncOrientation();
 
+  ORBIT.account.init();
+
   if (ORBIT.loadError) ORBIT.ui.toast('保存データを読み込めませんでした。元データは退避済みです（設定から確認できます）');
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

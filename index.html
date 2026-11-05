@@ -290,6 +290,40 @@ textarea.inp { resize: vertical; min-height: 84px; }
 @media (min-width: 720px) {
   .view:not(#home3d):not(#breakView) > * { width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }
 }
+/* ---------- ログイン ---------- */
+#auth { position: fixed; inset: 0; z-index: 90; overflow-y: auto; display: flex; align-items: center; justify-content: center;
+  padding: calc(var(--safe-t) + 24px) calc(var(--safe-r) + 20px) calc(var(--safe-b) + 24px) calc(var(--safe-l) + 20px);
+  background: radial-gradient(ellipse 80% 60% at 50% 18%, rgba(37, 99, 235, .22), transparent 70%), var(--bg-deep); }
+#auth[hidden] { display: none; }
+body.locked { overflow: hidden; }
+.auth-card { width: 100%; max-width: 380px; }
+.auth-mark { position: relative; width: 84px; height: 84px; margin: 0 auto 14px; }
+.auth-mark i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--line-strong); transform: rotateX(68deg);
+  box-shadow: 0 0 18px rgba(96, 165, 250, .35); animation: authSpin 9s linear infinite; }
+.auth-mark b { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; transform: rotate(45deg);
+  background: linear-gradient(135deg, #93C5FD, #1D4ED8 55%, #0B1E5B); box-shadow: 0 0 28px rgba(96, 165, 250, .75), inset 0 0 6px rgba(255, 255, 255, .5); }
+@keyframes authSpin { to { transform: rotateX(68deg) rotateZ(360deg); } }
+.auth-title { margin: 0; text-align: center; font-size: 26px; font-weight: 600; letter-spacing: .32em; text-indent: .32em;
+  text-shadow: 0 0 24px rgba(96, 165, 250, .55); }
+.auth-sub { margin: 6px 0 26px; text-align: center; font-size: 13px; color: var(--fg-2); letter-spacing: .08em; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface); margin-bottom: 8px; }
+.auth-tabs button { padding: 11px 0; border-radius: 9px; font-size: 14.5px; color: var(--fg-2); }
+.auth-tabs button.on { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line-strong); }
+.inp.code { font-variant-numeric: tabular-nums; letter-spacing: .14em; text-transform: uppercase; }
+.auth-err { min-height: 20px; margin: 4px 4px 0; font-size: 13px; color: var(--danger); }
+.auth-err:empty { min-height: 0; }
+.auth-foot { margin-top: 18px; text-align: center; color: var(--fg-3); line-height: 1.7; }
+.btn:disabled { opacity: .55; }
+.acct { padding: 12px 6px; border-bottom: 1px solid var(--line); }
+.acct-name { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.acct-sync { margin-top: 4px; font-size: 13px; color: var(--ok); }
+.acct-sync.warn { color: #FBBF24; }
+.tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--hi-soft); color: var(--hi); }
+.code-big { margin: 14px 0 4px; text-align: center; font-size: 28px; letter-spacing: .16em; color: var(--hi); text-shadow: 0 0 18px rgba(96, 165, 250, .5); }
+.invite-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+.invite-row.dead { opacity: .5; }
+.invite-row .txt { padding: 10px 8px; color: var(--hi); font-size: 14px; }
+.invite-row .txt.danger { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -326,6 +360,7 @@ textarea.inp { resize: vertical; min-height: 84px; }
 <div id="scrim" hidden></div>
 <div id="launcher" role="menu" hidden></div>
 <div id="sheet" role="dialog" aria-modal="true" hidden></div>
+<section id="auth" aria-label="ログイン" hidden></section>
 <div id="toast" role="status" aria-live="polite"><span class="msg"></span><button type="button">元に戻す</button></div>
 
 <script src="js/core.js"></script>
@@ -337,6 +372,7 @@ textarea.inp { resize: vertical; min-height: 84px; }
 <script src="js/focus.js"></script>
 <script src="js/modules.js"></script>
 <script src="js/home3d.js"></script>
+<script src="js/account.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

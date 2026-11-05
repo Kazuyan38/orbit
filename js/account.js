@@ -9,8 +9,8 @@
   const store = ORBIT.store;
 
   /* ---------- 設定 ---------- */
-  const API_URL = '';   // https://<project-ref>.supabase.co
-  const API_KEY = '';   // publishable key（公開してよい鍵。権限は RPC 側で絞っている）
+  const API_URL = 'https://fduwnfajcqctxjhvlgnv.supabase.co';
+  const API_KEY = 'sb_publishable_rUPYSC_bigCVFikp8tdGIA_F9hJf8Oh';   // publishable key（公開してよい鍵。権限は RPC 側で絞っている）
   const SESSION_KEY = 'orbit.session.v1';
   const SYNC_KEY = 'orbit.sync.v1';
   const BACKUP_PREFIX = 'orbit.state.v1.saved.';
@@ -42,6 +42,7 @@
   let session = read(SESSION_KEY);   // { token, username, is_admin }
   let sync = Object.assign({ owner: null, rev: 0, dirty: false, hash: 0, at: 0, error: null }, read(SYNC_KEY));
   let pushTimer = 0, pushing = null, pulling = false, applying = false, conflictShown = false, editSeq = 0;
+  let gen = 0;   // ログイン・ログアウトごとに進め、前のアカウント宛ての通信結果を捨てる
 
   class ApiError extends Error { constructor(code) { super(code); this.code = code; } }
   const message = (e) => ERR[e && e.code] || '処理できませんでした';
@@ -113,10 +114,12 @@
     if (!session || !sync.dirty || conflictShown) return Promise.resolve();
     if (pushing) return pushing;
     const seq = editSeq;
+    const myGen = gen;
     const text = payloadText();
-    pushing = rpc('orbit_push', { p_token: session.token, p_data: JSON.parse(text), p_base_rev: sync.rev },
+    const p = rpc('orbit_push', { p_token: session.token, p_data: JSON.parse(text), p_base_rev: sync.rev },
       { keepalive: keepalive && text.length < KEEPALIVE_LIMIT })
       .then((res) => {
+        if (myGen !== gen) return;
         if (!res.ok) { conflict(res); return; }
         sync.rev = res.rev;
         sync.hash = hash(text);
@@ -125,19 +128,22 @@
         if (seq === editSeq) sync.dirty = false;
         saveSync();
       })
-      .catch(failed)
+      .catch((e) => { if (myGen === gen) failed(e); })
       .finally(() => {
-        pushing = null;
-        if (sync.dirty && session && !conflictShown) schedulePush(sync.error ? RETRY_DELAY : PUSH_DELAY);
+        if (pushing === p) pushing = null;
+        if (myGen === gen && sync.dirty && session && !conflictShown) schedulePush(sync.error ? RETRY_DELAY : PUSH_DELAY);
       });
-    return pushing;
+    pushing = p;
+    return p;
   }
 
   async function pull() {
     if (!session || pulling || conflictShown) return;
     pulling = true;
+    const myGen = gen;
     try {
       const res = await rpc('orbit_pull', { p_token: session.token, p_rev: sync.rev });
+      if (myGen !== gen) return;
       sync.error = null;
       if (res.unchanged || (res.data == null && sync.rev === 0)) {
         sync.at = Date.now();
@@ -152,7 +158,7 @@
         apply(res);
       }
     } catch (e) {
-      failed(e);
+      if (myGen === gen) failed(e);
     } finally {
       pulling = false;
     }
@@ -227,7 +233,15 @@
   }
 
   /* ---------- ログイン状態 ---------- */
+  function newGeneration() {
+    gen++;
+    pushing = null;
+    pulling = false;
+    clearTimeout(pushTimer);
+  }
+
   function begin(s) {
+    newGeneration();
     session = { token: s.token, username: s.username, is_admin: !!s.is_admin };
     write(SESSION_KEY, session);
     if (sync.owner !== session.username) {
@@ -252,6 +266,7 @@
   }
 
   function expire() {
+    newGeneration();
     session = null;
     write(SESSION_KEY, null);
     showGate('unauthorized');
@@ -272,9 +287,9 @@
     if (sync.dirty) stash(payloadText(), `@${session.username} の未同期の変更`);
     const token = session.token;
     rpc('orbit_logout', { p_token: token }).catch(() => {});
+    newGeneration();
     session = null;
     write(SESSION_KEY, null);
-    clearTimeout(pushTimer);
     sync = { owner: null, rev: 0, dirty: false, hash: 0, at: 0, error: null };
     saveSync();
     replaceLocal(C.createState());
@@ -563,18 +578,20 @@
 
   /* ---------- 起動 ---------- */
   function init() {
+    if (!API_URL || !API_KEY) return;   // サーバー未設定ならアカウント機能なし（端末内だけで動く）
     bindGate();
     store.onSaved(onSaved);
     if (!session) { showGate(); return; }
     // 端末内のデータで即座に使える。クラウドとの照合は裏で行う。
     pull();
   }
-  setInterval(() => { if (document.visibilityState === 'visible') pull(); }, PULL_INTERVAL);
+  setInterval(() => { if (session && document.visibilityState === 'visible') pull(); }, PULL_INTERVAL);
   document.addEventListener('visibilitychange', () => {
+    if (!session) return;
     if (document.visibilityState === 'visible') pull();
     else if (sync.dirty) push({ keepalive: true });
   });
-  window.addEventListener('online', () => { sync.error = null; push().then(pull); });
+  window.addEventListener('online', () => { if (session) { sync.error = null; push().then(pull); } });
 
   ORBIT.account = {
     init, settingsHTML, action,
